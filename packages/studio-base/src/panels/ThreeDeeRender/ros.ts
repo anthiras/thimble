@@ -242,6 +242,16 @@ export type OccupancyGrid = {
   data: Int8Array | number[];
 };
 
+export type CostmapData = {
+  header: Header;
+  height: number;
+  width: number;
+  resolution: number;
+  offset_x: number;
+  offset_y: number;
+  data: Int8Array | number[];
+};
+
 export type PoseStamped = {
   header: Header;
   pose: Pose;
@@ -353,6 +363,9 @@ addRosDataType(MARKER_ARRAY_DATATYPES, "studio_msgs/MarkerArray");
 
 export const OCCUPANCY_GRID_DATATYPES = new Set<string>();
 addRosDataType(OCCUPANCY_GRID_DATATYPES, "nav_msgs/OccupancyGrid");
+
+export const MIR_COST_MAP_DATATYPE = new Set<string>();
+addRosDataType(MIR_COST_MAP_DATATYPE, "mirMsgs/CostmapData");
 
 export const POINTCLOUD_DATATYPES = new Set<string>();
 addRosDataType(POINTCLOUD_DATATYPES, "sensor_msgs/PointCloud2");

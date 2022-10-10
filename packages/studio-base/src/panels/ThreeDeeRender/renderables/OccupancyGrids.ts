@@ -19,7 +19,7 @@ import {
   normalizeInt8Array,
   normalizeTime,
 } from "../normalizeMessages";
-import {  OccupancyGrid, OCCUPANCY_GRID_DATATYPES } from "../ros"; // ColorRGBA,
+import {  OccupancyGrid, OCCUPANCY_GRID_DATATYPES, CostmapData, MIR_COST_MAP_DATATYPE } from "../ros"; // ColorRGBA,
 import { BaseSettings } from "../settings";
 
 export type LayerSettingsOccupancyGrid = BaseSettings & {
@@ -82,6 +82,7 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
   public constructor(renderer: Renderer) {
     super("foxglove.OccupancyGrids", renderer);
 
+    renderer.addDatatypeSubscriptions(MIR_COST_MAP_DATATYPE, this.handleCostmapData);
     renderer.addDatatypeSubscriptions(OCCUPANCY_GRID_DATATYPES, this.handleOccupancyGrid);
   }
 
@@ -151,6 +152,11 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
       );
     }
   };
+
+  private handleCostmapData = (messageEvent: PartialMessageEvent<CostmapData>): void => {
+    const new_msg = MirToRos(messageEvent);
+    this.handleOccupancyGrid(new_msg);
+  }
 
   private handleOccupancyGrid = (messageEvent: PartialMessageEvent<OccupancyGrid>): void => {
     const topic = messageEvent.topic;
@@ -515,6 +521,52 @@ function occupancyGridHasTransparency(): boolean { // settings: LayerSettingsOcc
 //   color.b = Math.trunc(SRGBToLinear(color.b) * 255);
 //   color.a = Math.trunc(color.a * 255);
 // }
+
+function MirToRos(messageEvent: PartialMessageEvent<CostmapData>) : PartialMessageEvent<OccupancyGrid> {
+  console.log("We are here!");
+  const occupancy_grid_data = new Int8Array(messageEvent.message.data?.length!);
+  const width = messageEvent.message.width!;
+  const height = messageEvent.message.height!;
+  const offset_x = messageEvent.message.offset_x!;
+  const offset_y = messageEvent.message.offset_y!;
+  console.log(occupancy_grid_data.length);
+  for (let y = 0; y < width; y ++) {
+    for (let x = 0; x < height; x ++) {
+      const index  = (width * y + x) / 4;
+      const offset = 6 - (((width * y + x) % 4) * 2);
+      const value = messageEvent.message.data![index] ;
+      occupancy_grid_data[(width * y + x)] = (value! >> offset) & 3;
+    }
+  }
+
+  return {
+        topic: messageEvent.topic,
+        schemaName: messageEvent.schemaName,
+        receiveTime: messageEvent.receiveTime,
+        publishTime: messageEvent.publishTime,
+        message: {
+          header: messageEvent.message.header,
+          info: {
+            map_load_time: {
+              sec: 0,
+              nsec: 0,
+            },
+            resolution: messageEvent.message.resolution,
+            width: width,
+            height: height,
+            origin: {
+              position: {x:offset_x, y:offset_y, z:0},
+              orientation: {x:
+                0, y:0, z:0,w: 1
+              }
+              ,
+            },
+          },
+          data: occupancy_grid_data,
+        },
+        sizeInBytes: messageEvent.sizeInBytes,
+  };
+}
 
 function normalizeOccupancyGrid(message: PartialMessage<OccupancyGrid>): OccupancyGrid {
   const info = message.info ?? {};

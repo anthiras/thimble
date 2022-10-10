@@ -4,7 +4,7 @@ WORKDIR /src
 COPY . ./
 
 RUN corepack enable
-RUN apt-get install git-lfs
+RUN apt update && apt-get install git-lfs
 RUN git lfs fetch --all https://github.com/foxglove/studio && git lfs checkout
 RUN yarn install --immutable
 

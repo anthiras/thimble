@@ -20,7 +20,7 @@ import { BaseUserData, Renderable } from "../Renderable";
 import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
-import { rgbaToCssString } from "../color";
+import { rgbaToCssString, stringToRgba } from "../color";
 import {
   LASERSCAN_DATATYPES as FOXGLOVE_LASERSCAN_DATATYPES,
   POINTCLOUD_DATATYPES as FOXGLOVE_POINTCLOUD_DATATYPES,
@@ -40,13 +40,14 @@ import {
   POINTCLOUD_DATATYPES as ROS_POINTCLOUD_DATATYPES,
   PointField,
   PointFieldType,
+  MirObstacleCloud,
+  MIR_OBSTACLE_CLOUD,
 } from "../ros";
 import { BaseSettings } from "../settings";
 import { makePose, MAX_DURATION, Pose } from "../transforms";
 import { updatePose } from "../updatePose";
 import {
   bestColorByField,
-  colorHasTransparency,
   ColorModeSettings,
   COLOR_FIELDS,
   getColorConverter,
@@ -126,6 +127,7 @@ export const DEFAULT_SETTINGS: LayerSettingsPointCloudAndLaserScan = {
 const ALL_POINTCLOUD_DATATYPES = new Set<string>([
   ...FOXGLOVE_POINTCLOUD_DATATYPES,
   ...ROS_POINTCLOUD_DATATYPES,
+  ...MIR_OBSTACLE_CLOUD,
 ]);
 const ALL_LASERSCAN_DATATYPES = new Set<string>([
   ...FOXGLOVE_LASERSCAN_DATATYPES,
@@ -767,6 +769,7 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
   public constructor(renderer: Renderer) {
     super("foxglove.PointCloudsAndLaserScans", renderer);
 
+    renderer.addDatatypeSubscriptions(MIR_OBSTACLE_CLOUD, this.handleMirPointCloud);
     renderer.addDatatypeSubscriptions(ROS_POINTCLOUD_DATATYPES, this.handleRosPointCloud);
     renderer.addDatatypeSubscriptions(FOXGLOVE_POINTCLOUD_DATATYPES, this.handleFoxglovePointCloud);
     renderer.addDatatypeSubscriptions(ROS_LASERSCAN_DATATYPES, this.handleLaserScan);
@@ -778,8 +781,8 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      const isPointCloud = ALL_POINTCLOUD_DATATYPES.has(topic.schemaName);
-      const isLaserScan = !isPointCloud && ALL_LASERSCAN_DATATYPES.has(topic.schemaName);
+      const isPointCloud = ALL_POINTCLOUD_DATATYPES.has(topic.datatype);
+      const isLaserScan = !isPointCloud && ALL_LASERSCAN_DATATYPES.has(topic.datatype);
       if (isPointCloud || isLaserScan) {
         const config = (configTopics[topic.name] ??
           {}) as Partial<LayerSettingsPointCloudAndLaserScan>;
@@ -925,6 +928,11 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
       receiveTime,
     );
   };
+
+  private handleMirPointCloud = (messageEvent: PartialMessageEvent<MirObstacleCloud>): void => {
+    const new_msg = MirToRos(messageEvent);
+    this.handleRosPointCloud(new_msg);
+  }
 
   private handleRosPointCloud = (messageEvent: PartialMessageEvent<PointCloud2>): void => {
     const topic = messageEvent.topic;
@@ -1361,6 +1369,24 @@ export function createInstancePickingMaterial(
   });
 }
 
+function colorHasTransparency(settings: LayerSettingsPointCloudAndLaserScan): boolean {
+  switch (settings.colorMode) {
+    case "flat":
+      return stringToRgba(tempColor, settings.flatColor).a < 1.0;
+    case "gradient":
+      return (
+        stringToRgba(tempColor, settings.gradient[0]).a < 1.0 ||
+        stringToRgba(tempColor, settings.gradient[1]).a < 1.0
+      );
+    case "colormap":
+    case "rgb":
+      return settings.explicitAlpha < 1.0;
+    case "rgba":
+      // It's too expensive to check the alpha value of each color. Just assume it's transparent
+      return true;
+  }
+}
+
 function pointCloudColorEncoding(settings: LayerSettingsPointCloudAndLaserScan): "srgb" | "linear" {
   switch (settings.colorMode) {
     case "flat":
@@ -1745,4 +1771,15 @@ function getStride(pointCloud: PointCloud | PointCloud2): number {
 function getPose(pointCloud: PointCloud | PointCloud2): Pose {
   const maybeFoxglove = pointCloud as Partial<PointCloud>;
   return maybeFoxglove.pose ?? makePose();
+}
+
+function MirToRos(messageEvent: PartialMessageEvent<MirObstacleCloud>): PartialMessageEvent<PointCloud2> {
+  return {
+        topic: messageEvent.topic,
+        schemaName: messageEvent.schemaName,
+        receiveTime: messageEvent.receiveTime,
+        publishTime: messageEvent.publishTime,
+        message: messageEvent.message.cloud!,
+        sizeInBytes: messageEvent.sizeInBytes,
+  }
 }

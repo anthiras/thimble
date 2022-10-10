@@ -161,6 +161,14 @@ export type PointCloud2 = {
   is_dense: boolean;
 };
 
+export type MirObstacleCloud = {
+  header: Header;
+  cloud: PointCloud2;
+  inflation_radius: number;
+  cell_width: number;
+  cell_height: number;
+};
+
 export type LaserScan = {
   header: Header;
   angle_min: number;
@@ -302,6 +310,9 @@ addRosDataType(OCCUPANCY_GRID_DATATYPES, "nav_msgs/OccupancyGrid");
 
 export const POINTCLOUD_DATATYPES = new Set<string>();
 addRosDataType(POINTCLOUD_DATATYPES, "sensor_msgs/PointCloud2");
+
+export const MIR_OBSTACLE_CLOUD = new Set<string>();
+addRosDataType(MIR_OBSTACLE_CLOUD, "mirMsgs/ObstacleCloud");
 
 export const LASERSCAN_DATATYPES = new Set<string>();
 addRosDataType(LASERSCAN_DATATYPES, "sensor_msgs/LaserScan");

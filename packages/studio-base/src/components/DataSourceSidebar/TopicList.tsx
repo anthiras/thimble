@@ -147,17 +147,13 @@ function TopicListItem({
         primary={<HighlightChars str={topic.name} indices={positions} />}
         primaryTypographyProps={{ noWrap: true, title: topic.name }}
         secondary={
-          <HighlightChars
-            str={topic.schemaName}
-            indices={positions}
-            offset={topic.name.length + 1}
-          />
+          <HighlightChars str={topic.datatype} indices={positions} offset={topic.name.length + 1} />
         }
         secondaryTypographyProps={{
           variant: "caption",
           fontFamily: fonts.MONOSPACE,
           noWrap: true,
-          title: topic.schemaName,
+          title: topic.datatype,
         }}
         style={{ marginRight: "48px" }}
       />
@@ -179,7 +175,7 @@ export function TopicList(): JSX.Element {
         ? new Fzf(topics, {
             fuzzy: filterText.length > 2 ? "v2" : false,
             sort: true,
-            selector: (item) => `${item.name}|${item.schemaName}`,
+            selector: (item) => `${item.name}|${item.datatype}`,
           }).find(filterText)
         : topics.map((item) => topicToFzfResult(item)),
     [filterText, topics],

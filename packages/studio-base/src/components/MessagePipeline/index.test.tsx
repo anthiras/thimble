@@ -16,7 +16,6 @@
 
 import { renderHook, act } from "@testing-library/react-hooks";
 import { PropsWithChildren, useCallback, useState } from "react";
-import { DeepPartial } from "ts-essentials";
 
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import {
@@ -217,7 +216,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
             isPlaying: false,
             speed: 1,
             lastSeekTime: 0,
-            topics: [{ name: "foo", schemaName: "Foo" }],
+            topics: [{ name: "foo", datatype: "Foo" }],
             topicStats: new Map(),
             datatypes: new Map(),
           },
@@ -236,8 +235,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
             speed: 1,
             lastSeekTime: 0,
             topics: [
-              { name: "foo", schemaName: "Foo" },
-              { name: "bar", schemaName: "Bar" },
+              { name: "foo", datatype: "Foo" },
+              { name: "bar", datatype: "Bar" },
             ],
             topicStats: new Map(),
             datatypes: new Map(),
@@ -245,7 +244,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
         }),
     );
     expect(all).toEqual([
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
+      expect.objectContaining({
         playerState: {
           activeData: undefined,
           capabilities: [],
@@ -254,13 +253,13 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
           progress: {},
         },
       }),
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
-        sortedTopics: [{ name: "foo", schemaName: "Foo" }],
+      expect.objectContaining({
+        sortedTopics: [{ name: "foo", datatype: "Foo" }],
       }),
-      expect.objectContaining<DeepPartial<typeof all[0]>>({
+      expect.objectContaining({
         sortedTopics: [
-          { name: "bar", schemaName: "Bar" },
-          { name: "foo", schemaName: "Foo" },
+          { name: "bar", datatype: "Bar" },
+          { name: "foo", datatype: "Foo" },
         ],
       }),
     ]);
@@ -334,7 +333,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
             isPlaying: true,
             speed: 0.2,
             lastSeekTime: 1234,
-            topics: [{ name: "/input/foo", schemaName: "foo" }],
+            topics: [{ name: "/input/foo", datatype: "foo" }],
             topicStats: new Map<string, TopicStats>([["/input/foo", { numMessages: 1 }]]),
             datatypes: new Map(Object.entries({ foo: { definitions: [] } })),
             totalBytesReceived: 1234,

@@ -116,11 +116,11 @@ export class Poses extends SceneExtension<PoseRenderable> {
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      const isPoseStamped = POSE_STAMPED_DATATYPES.has(topic.schemaName);
-      const isPoseInFrame = POSE_IN_FRAME_DATATYPES.has(topic.schemaName);
+      const isPoseStamped = POSE_STAMPED_DATATYPES.has(topic.datatype);
+      const isPoseInFrame = POSE_IN_FRAME_DATATYPES.has(topic.datatype);
       const isPoseWithCovarianceStamped = isPoseStamped
         ? false
-        : POSE_WITH_COVARIANCE_STAMPED_DATATYPES.has(topic.schemaName);
+        : POSE_WITH_COVARIANCE_STAMPED_DATATYPES.has(topic.datatype);
       if (isPoseStamped || isPoseWithCovarianceStamped || isPoseInFrame) {
         const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsPose>;
         const type = config.type ?? DEFAULT_TYPE;

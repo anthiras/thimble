@@ -553,11 +553,11 @@ export default class UserNodePlayer implements Player {
       }
     };
 
-    const result: NodeRegistration = {
+    const result = {
       nodeId,
       nodeData,
       inputs: inputTopics,
-      output: { name: outputTopic, schemaName: outputDatatype },
+      output: { name: outputTopic, datatype: outputDatatype },
       processMessage: buildMessageProcessor(),
       processBlockMessage: buildMessageProcessor(),
       terminate,

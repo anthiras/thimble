@@ -21,7 +21,6 @@ import generateRosLib, {
 } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/generateRosLib";
 import { compile } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/transform";
 import { NodeData } from "@foxglove/studio-base/players/UserNodePlayer/types";
-import { Topic } from "@foxglove/studio-base/players/types";
 
 const baseNodeData: NodeData = {
   name: "/studio_script/main",
@@ -330,9 +329,9 @@ describe("typegen", () => {
         topics: [
           {
             name: "/my_topic",
-            schemaName: "std_msgs/ColorRGBA",
+            datatype: "std_msgs/ColorRGBA",
           },
-          { name: "/empty_topic", schemaName: "std_msgs/NoDef" },
+          { name: "/empty_topic", datatype: "std_msgs/NoDef" },
         ],
         datatypes: new Map(
           Object.entries({
@@ -353,9 +352,9 @@ describe("typegen", () => {
       expect(rosLib).toMatchSnapshot();
     });
     it("more complex snapshot", () => {
-      const randomTopics: Topic[] = Array.from(stressTestDatatypes.keys()).map((schemaName, i) => ({
+      const randomTopics = Array.from(stressTestDatatypes.keys()).map((datatype, i) => ({
         name: `/topic_${i}`,
-        schemaName,
+        datatype,
       }));
       const rosLib = generateRosLib({ topics: randomTopics, datatypes: stressTestDatatypes });
       const { diagnostics } = compile({ ...baseNodeData, sourceCode: rosLib });

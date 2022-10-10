@@ -2,8 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MessageEvent } from "@foxglove/studio";
-import { Topic } from "@foxglove/studio-base/players/types";
+import { MessageEvent, Topic } from "@foxglove/studio";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import ThreeDeeRender from "../index";
@@ -25,10 +24,10 @@ export default {
 CameraInfoRender.parameters = { colorScheme: "dark" };
 export function CameraInfoRender(): JSX.Element {
   const topics: Topic[] = [
-    { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
-    { name: "/rational_polynomial", schemaName: "sensor_msgs/CameraInfo" },
-    { name: "/none", schemaName: "sensor_msgs/CameraInfo" },
-    { name: "/empty", schemaName: "sensor_msgs/CameraInfo" },
+    { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
+    { name: "/rational_polynomial", datatype: "sensor_msgs/CameraInfo" },
+    { name: "/none", datatype: "sensor_msgs/CameraInfo" },
+    { name: "/empty", datatype: "sensor_msgs/CameraInfo" },
   ];
 
   const tf1: MessageEvent<TransformStamped> = {

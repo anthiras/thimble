@@ -123,7 +123,7 @@ export default function TreeNodeMenu({
           <Item
             dataTest={`topic-row-menu-edit-settings-${topicName}`}
             onClick={() => {
-              setCurrentEditingTopic({ name: topicName, schemaName: datatype });
+              setCurrentEditingTopic({ name: topicName, datatype });
               setIsOpen(false);
             }}
           >

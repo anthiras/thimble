@@ -2,8 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MessageEvent } from "@foxglove/studio";
-import { Topic } from "@foxglove/studio-base/players/types";
+import { MessageEvent, Topic } from "@foxglove/studio";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import ThreeDeeRender from "../index";
@@ -19,8 +18,8 @@ export default {
 GeometryMsgs_Polygon.parameters = { colorScheme: "dark" };
 export function GeometryMsgs_Polygon(): JSX.Element {
   const topics: Topic[] = [
-    { name: "/polygon", schemaName: "geometry_msgs/PolygonStamped" },
-    { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
+    { name: "/polygon", datatype: "geometry_msgs/PolygonStamped" },
+    { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
   ];
   const tf1: MessageEvent<TransformStamped> = {
     topic: "/tf",

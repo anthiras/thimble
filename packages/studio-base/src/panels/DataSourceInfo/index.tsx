@@ -81,13 +81,13 @@ function TopicRow({ topic }: { topic: Topic }): JSX.Element {
         />
       </td>
       <td>
-        {topic.schemaName}
+        {topic.datatype}
         <CopyButton
           className={classes.copyIcon}
           edge="end"
           size="small"
           iconSize="small"
-          getText={() => topic.schemaName}
+          getText={() => topic.datatype}
         />
       </td>
       <td data-topic={topic.name} data-topic-stat="count">

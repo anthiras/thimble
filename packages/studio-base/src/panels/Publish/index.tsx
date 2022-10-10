@@ -197,7 +197,7 @@ function Publish(props: Props) {
   // when a known topic is selected, also fill in its datatype
   const onSelectTopic = useCallback(
     (name: string, topic: Topic, autocomplete: IAutocomplete) => {
-      saveConfig({ topicName: name, datatype: topic.schemaName });
+      saveConfig({ topicName: name, datatype: topic.datatype });
       autocomplete.blur();
     },
     [saveConfig],
@@ -239,7 +239,7 @@ function Publish(props: Props) {
                 hasError={false}
                 onChange={onChangeTopic}
                 onSelect={onSelectTopic}
-                selectedItem={{ name: topicName, schemaName: "" }}
+                selectedItem={{ name: topicName, datatype: "" }}
                 getItemText={getTopicName}
                 getItemValue={getTopicName}
               />

@@ -4,8 +4,7 @@
 
 import { fromSec } from "@foxglove/rostime";
 import type { FrameTransform } from "@foxglove/schemas";
-import { MessageEvent } from "@foxglove/studio";
-import { Topic } from "@foxglove/studio-base/players/types";
+import { MessageEvent, Topic } from "@foxglove/studio";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import ThreeDeeRender from "../index";
@@ -23,8 +22,8 @@ export default {
 FoxgloveFrameTransform.parameters = { colorScheme: "dark" };
 export function FoxgloveFrameTransform(): JSX.Element {
   const topics: Topic[] = [
-    { name: "/markers", schemaName: "visualization_msgs/Marker" },
-    { name: "/tf", schemaName: "foxglove.FrameTransform" },
+    { name: "/markers", datatype: "visualization_msgs/Marker" },
+    { name: "/tf", datatype: "foxglove.FrameTransform" },
   ];
   const tf_t1: MessageEvent<FrameTransform> = {
     topic: "/tf",

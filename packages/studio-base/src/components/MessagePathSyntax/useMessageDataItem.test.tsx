@@ -20,7 +20,7 @@ import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { useMessageDataItem } from "./useMessageDataItem";
 
-const topics: Topic[] = [{ name: "/topic", schemaName: "datatype" }];
+const topics = [{ name: "/topic", datatype: "datatype" }];
 const datatypes: RosDatatypes = new Map(
   Object.entries({
     datatype: {

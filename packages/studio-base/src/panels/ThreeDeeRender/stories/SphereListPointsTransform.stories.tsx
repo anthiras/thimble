@@ -4,8 +4,7 @@
 
 import { DeepWritable } from "ts-essentials";
 
-import { MessageEvent } from "@foxglove/studio";
-import { Topic } from "@foxglove/studio-base/players/types";
+import { MessageEvent, Topic } from "@foxglove/studio";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 import { SphereListMarker } from "@foxglove/studio-base/types/Messages";
 
@@ -57,8 +56,8 @@ export function SphereListPointsTransform(): JSX.Element {
   }
 
   const topics: Topic[] = [
-    { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
-    { name: "/sphere", schemaName: "visualization_msgs/Marker" },
+    { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
+    { name: "/sphere", datatype: "visualization_msgs/Marker" },
   ];
 
   const tf1: MessageEvent<TransformStamped> = {

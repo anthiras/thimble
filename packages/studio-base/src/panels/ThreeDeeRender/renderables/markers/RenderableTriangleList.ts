@@ -6,14 +6,13 @@ import * as THREE from "three";
 
 import type { Renderer } from "../../Renderer";
 import { rgbaToLinear } from "../../color";
-import { Marker, Vector3 } from "../../ros";
+import { Marker } from "../../ros";
 import { RenderableMarker } from "./RenderableMarker";
 import { markerHasTransparency, makeStandardVertexColorMaterial } from "./materials";
 
 const NOT_DIVISIBLE_ERR = "NOT_DIVISIBLE";
 const EMPTY_ERR = "EMPTY";
 const COLORS_MISMATCH_ERR = "COLORS_MISMATCH";
-const INVALID_POINT_ERR = "INVALID_POINT";
 const EMPTY_FLOAT32 = new Float32Array();
 
 const tempColor = { r: 0, g: 0, b: 0, a: 0 };
@@ -106,14 +105,6 @@ export class RenderableTriangleList extends RenderableMarker {
     // Update position/color buffers with the new marker data
     for (let i = 0; i < vertexCount; i++) {
       const point = marker.points[i]!;
-      if (!isPointValid(point)) {
-        this.renderer.settings.errors.addToTopic(
-          this.userData.topic,
-          INVALID_POINT_ERR,
-          `TRIANGLE_LIST: point at index ${i} is not finite`,
-        );
-        continue;
-      }
       dataChanged =
         dataChanged ||
         vertices[i * 3] !== point.x ||
@@ -148,8 +139,4 @@ export class RenderableTriangleList extends RenderableMarker {
       geometry.computeBoundingSphere();
     }
   }
-}
-
-function isPointValid(pt: Vector3): boolean {
-  return Number.isFinite(pt.x) && Number.isFinite(pt.y) && Number.isFinite(pt.z);
 }

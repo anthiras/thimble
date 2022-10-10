@@ -67,12 +67,9 @@ describe("DataPlatformIterableSource", () => {
 
     const source = new DataPlatformIterableSource({
       api: stubApi,
-      params: {
-        type: "by-device",
-        deviceId: "device-id",
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 40, nsec: 0 },
-      },
+      deviceId: "device-id",
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 40, nsec: 0 },
     });
 
     const initResult = await source.initialize();
@@ -88,7 +85,6 @@ describe("DataPlatformIterableSource", () => {
       [
         expect.objectContaining({
           params: {
-            type: "by-device",
             deviceId: "device-id",
             start: { sec: 0, nsec: 0 },
             end: { sec: 5, nsec: 0 },
@@ -99,7 +95,6 @@ describe("DataPlatformIterableSource", () => {
       [
         expect.objectContaining({
           params: {
-            type: "by-device",
             deviceId: "device-id",
             start: { sec: 5, nsec: 1 },
             end: { sec: 10, nsec: 1 },
@@ -110,7 +105,6 @@ describe("DataPlatformIterableSource", () => {
       [
         expect.objectContaining({
           params: {
-            type: "by-device",
             deviceId: "device-id",
             start: { sec: 20, nsec: 0 },
             end: { sec: 25, nsec: 0 },

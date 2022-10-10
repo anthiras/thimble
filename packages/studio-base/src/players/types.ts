@@ -204,7 +204,7 @@ export type Topic = {
   // a consistent representation for topics that people recognize though.
   name: string;
   // Name of the datatype (see `type PlayerStateActiveData` for details).
-  schemaName: string;
+  datatype: string;
 };
 
 export type TopicStats = {

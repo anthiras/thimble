@@ -15,11 +15,11 @@ function Wrapper(StoryFn: Story): JSX.Element {
       topics={[
         {
           name: "/topic_1",
-          schemaName: "std_msgs/String",
+          datatype: "std_msgs/String",
         },
         {
           name: '"/topic_2"',
-          schemaName: "std_msgs/String",
+          datatype: "std_msgs/String",
         },
       ]}
       topicStats={

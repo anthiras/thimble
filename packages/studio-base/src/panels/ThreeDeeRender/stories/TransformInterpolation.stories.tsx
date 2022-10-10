@@ -3,8 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { fromSec } from "@foxglove/rostime";
-import { MessageEvent } from "@foxglove/studio";
-import { Topic } from "@foxglove/studio-base/players/types";
+import { MessageEvent, Topic } from "@foxglove/studio";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import ThreeDeeRender from "../index";
@@ -22,8 +21,8 @@ export default {
 TransformInterpolation.parameters = { colorScheme: "dark" };
 export function TransformInterpolation(): JSX.Element {
   const topics: Topic[] = [
-    { name: "/markers", schemaName: "visualization_msgs/Marker" },
-    { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
+    { name: "/markers", datatype: "visualization_msgs/Marker" },
+    { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
   ];
   const tf_t1: MessageEvent<TransformStamped> = {
     topic: "/tf",
@@ -121,8 +120,8 @@ export function TransformInterpolation(): JSX.Element {
 TransformOffsets.parameters = { colorScheme: "dark" };
 export function TransformOffsets(): JSX.Element {
   const topics: Topic[] = [
-    { name: "/markers", schemaName: "visualization_msgs/Marker" },
-    { name: "/tf", schemaName: "geometry_msgs/TransformStamped" },
+    { name: "/markers", datatype: "visualization_msgs/Marker" },
+    { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
   ];
   const tf_ab: MessageEvent<TransformStamped> = {
     topic: "/tf",

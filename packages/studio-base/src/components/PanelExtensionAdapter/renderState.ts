@@ -3,12 +3,18 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { toSec } from "@foxglove/rostime";
-import { AppSettingValue, MessageEvent, ParameterValue, RenderState } from "@foxglove/studio";
+import {
+  AppSettingValue,
+  MessageEvent,
+  ParameterValue,
+  RenderState,
+  Topic,
+} from "@foxglove/studio";
 import {
   EMPTY_GLOBAL_VARIABLES,
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { PlayerState, Topic } from "@foxglove/studio-base/players/types";
+import { PlayerState } from "@foxglove/studio-base/players/types";
 import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 
 const EmptyParameters = new Map<string, ParameterValue>();
@@ -42,7 +48,6 @@ function initRenderStateBuilder(): BuildRenderStateFn {
   let prevBlocks: unknown;
   let prevSeekTime: number | undefined;
   let prevSubscribedTopics: string[];
-  let prevSortedTopics: readonly Topic[] | undefined;
 
   const prevRenderState: RenderState = {};
 
@@ -113,14 +118,9 @@ function initRenderStateBuilder(): BuildRenderStateFn {
     }
 
     if (watchedFields.has("topics")) {
-      if (sortedTopics !== prevSortedTopics) {
+      if (sortedTopics !== prevRenderState.topics) {
         shouldRender = true;
-        renderState.topics = sortedTopics.map(({ name, schemaName }) => ({
-          name,
-          datatype: schemaName,
-          schemaName,
-        }));
-        prevSortedTopics = sortedTopics;
+        renderState.topics = sortedTopics;
       }
     }
 

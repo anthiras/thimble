@@ -13,12 +13,11 @@
 
 import { useMemo } from "react";
 
-import { Time } from "@foxglove/studio";
+import { Time, Topic } from "@foxglove/studio";
 import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { Topic } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 function selectDatatypes(ctx: MessagePipelineContext) {

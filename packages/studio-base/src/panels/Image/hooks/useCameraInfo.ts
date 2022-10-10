@@ -61,7 +61,7 @@ export function useCameraInfo(cameraTopic: string): CameraInfo | undefined {
 
     for (const topic of topics) {
       if (topic.name === cameraInfoTopic) {
-        return { cameraInfoTopics: [cameraInfoTopic], datatype: topic.schemaName };
+        return { cameraInfoTopics: [cameraInfoTopic], datatype: topic.datatype };
       }
     }
 

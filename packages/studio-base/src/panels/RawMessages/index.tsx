@@ -158,7 +158,7 @@ function RawMessages(props: Props) {
       return;
     }
     return traverseStructure(
-      messagePathStructures(datatypes)[topic.schemaName],
+      messagePathStructures(datatypes)[topic.datatype],
       topicRosPath.messagePath,
     ).structureItem;
   }, [datatypes, topic, topicRosPath]);
@@ -437,7 +437,7 @@ function RawMessages(props: Props) {
           diffData={diffData}
           diff={diff}
           message={baseItem.messageEvent}
-          {...(topic ? { datatype: topic.schemaName } : undefined)}
+          {...(topic ? { datatype: topic.datatype } : undefined)}
           {...(diffItem ? { diffMessage: diffItem.messageEvent } : undefined)}
         />
         {shouldDisplaySingleVal ? (
@@ -700,7 +700,7 @@ function RawMessages(props: Props) {
                   path={diffTopicPath}
                   onChange={onDiffTopicPathChange}
                   inputStyle={{ height: "100%" }}
-                  {...(topic ? { prioritizedDatatype: topic.schemaName } : {})}
+                  {...(topic ? { prioritizedDatatype: topic.datatype } : {})}
                 />
               )}
             </Stack>

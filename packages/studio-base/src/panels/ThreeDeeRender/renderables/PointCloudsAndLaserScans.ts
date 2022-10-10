@@ -20,7 +20,7 @@ import { BaseUserData, Renderable } from "../Renderable";
 import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
-import { rgbaToCssString } from "../color";
+import { rgbaToCssString, stringToRgba } from "../color";
 import {
   LASERSCAN_DATATYPES as FOXGLOVE_LASERSCAN_DATATYPES,
   POINTCLOUD_DATATYPES as FOXGLOVE_POINTCLOUD_DATATYPES,
@@ -46,7 +46,6 @@ import { makePose, MAX_DURATION, Pose } from "../transforms";
 import { updatePose } from "../updatePose";
 import {
   bestColorByField,
-  colorHasTransparency,
   ColorModeSettings,
   COLOR_FIELDS,
   getColorConverter,
@@ -778,8 +777,8 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      const isPointCloud = ALL_POINTCLOUD_DATATYPES.has(topic.schemaName);
-      const isLaserScan = !isPointCloud && ALL_LASERSCAN_DATATYPES.has(topic.schemaName);
+      const isPointCloud = ALL_POINTCLOUD_DATATYPES.has(topic.datatype);
+      const isLaserScan = !isPointCloud && ALL_LASERSCAN_DATATYPES.has(topic.datatype);
       if (isPointCloud || isLaserScan) {
         const config = (configTopics[topic.name] ??
           {}) as Partial<LayerSettingsPointCloudAndLaserScan>;
@@ -1359,6 +1358,24 @@ export function createInstancePickingMaterial(
     side: THREE.DoubleSide,
     uniforms: { pointSize: { value: pointSize } },
   });
+}
+
+function colorHasTransparency(settings: LayerSettingsPointCloudAndLaserScan): boolean {
+  switch (settings.colorMode) {
+    case "flat":
+      return stringToRgba(tempColor, settings.flatColor).a < 1.0;
+    case "gradient":
+      return (
+        stringToRgba(tempColor, settings.gradient[0]).a < 1.0 ||
+        stringToRgba(tempColor, settings.gradient[1]).a < 1.0
+      );
+    case "colormap":
+    case "rgb":
+      return settings.explicitAlpha < 1.0;
+    case "rgba":
+      // It's too expensive to check the alpha value of each color. Just assume it's transparent
+      return true;
+  }
 }
 
 function pointCloudColorEncoding(settings: LayerSettingsPointCloudAndLaserScan): "srgb" | "linear" {

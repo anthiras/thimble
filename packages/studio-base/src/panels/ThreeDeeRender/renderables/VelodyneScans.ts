@@ -132,7 +132,7 @@ export class VelodyneScans extends SceneExtension<PointCloudAndLaserScanRenderab
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (VELODYNE_SCAN_DATATYPES.has(topic.schemaName)) {
+      if (VELODYNE_SCAN_DATATYPES.has(topic.datatype)) {
         const config = (configTopics[topic.name] ??
           {}) as Partial<LayerSettingsPointCloudAndLaserScan>;
         const node: SettingsTreeNodeWithActionHandler = pointCloudSettingsNode(

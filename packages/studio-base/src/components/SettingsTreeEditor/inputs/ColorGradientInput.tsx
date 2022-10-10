@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Popover, TextField, useTheme } from "@mui/material";
+import { Popover, TextField } from "@mui/material";
 import { useCallback, useState } from "react";
 import tinycolor from "tinycolor2";
 
@@ -59,8 +59,6 @@ export function ColorGradientInput({
   const safeLeftColor = tinycolor(leftColor).isValid() ? leftColor : "#000000";
   const safeRightColor = tinycolor(rightColor).isValid() ? rightColor : "#FFFFFF";
 
-  const theme = useTheme();
-
   return (
     <Stack
       direction="row"
@@ -68,7 +66,7 @@ export function ColorGradientInput({
         opacity: disabled ? 0.5 : 1,
         pointerEvents: disabled ? "none" : "auto",
         position: "relative",
-        background: `linear-gradient(to right, ${safeLeftColor}, ${safeRightColor}), repeating-conic-gradient(transparent 0 90deg, ${theme.palette.action.disabled} 90deg 180deg) top left/10px 10px repeat`,
+        backgroundImage: `linear-gradient(to right, ${safeLeftColor}, ${safeRightColor})`,
       }}
     >
       <ColorSwatch color={safeLeftColor} onClick={handleLeftClick} />

@@ -161,6 +161,7 @@
     "nearley-loader": "2.0.0",
     "notistack": "2.0.5",
     "path-browserify": "1.0.1",
+    "png-ts": "0.0.3",
     "prettier": "2.5.1",
     "promise-queue": "2.2.5",
     "protobufjs": "6.11.3",

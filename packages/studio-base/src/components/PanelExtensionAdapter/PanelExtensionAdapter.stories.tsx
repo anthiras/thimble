@@ -38,7 +38,7 @@ export const CatchRenderError = (): JSX.Element => {
         topics: [
           {
             name: "/topic",
-            schemaName: "test_msgs/Sample",
+            datatype: "test_msgs/Sample",
           },
         ],
         datatypes: new Map(),

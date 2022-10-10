@@ -59,7 +59,7 @@ export class FoxgloveSceneEntities extends SceneExtension<TopicEntities> {
     const configTopics = this.renderer.config.topics;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (SCENE_UPDATE_DATATYPES.has(topic.schemaName)) {
+      if (SCENE_UPDATE_DATATYPES.has(topic.datatype)) {
         const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsEntity>;
 
         const node: SettingsTreeNodeWithActionHandler = {

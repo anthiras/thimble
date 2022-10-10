@@ -4,6 +4,7 @@ WORKDIR /src
 COPY . ./
 
 RUN corepack enable
+RUN git lfs fetch --all https://github.com/foxglove/studio && git lfs checkout
 RUN yarn install --immutable
 
 ENV FOXGLOVE_DISABLE_SIGN_IN=true

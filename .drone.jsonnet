@@ -51,7 +51,7 @@ local masterTags = [
     tags = masterTags,
     testSteps= [{
       "name": "Test",
-      "image": "docker.artifactory.devops/rwku-webviz:" + majorVersion,
+      "image": "docker.artifactory.devops/mir-webviz:" + majorVersion,
       "pull": "never",
       "commands": [
       'echo "Your test commands here"',

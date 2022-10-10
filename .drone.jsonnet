@@ -80,7 +80,7 @@ local masterTags = [
     dind = true,
     commands = [
       'docker service update --image docker.artifactory.devops/'+projectName + ':' +
-        majorVersion + '.' + minorVersion + '.' + patchVersion + ' rwku-webviz_webviz'
+        majorVersion + '.' + minorVersion + '.' + patchVersion + ' mir-webviz_webviz'
     ]
   )
   + { "depends_on": [ "Build " + projectName +" - master" ] }

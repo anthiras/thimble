@@ -10,9 +10,8 @@ storybook-static/
 node_modules/
 
 # Yarn
-.yarn/*
+.yarn/cache/
 !.yarn/releases
-!.yarn/plugins
 !.yarn/sdks
 .pnp.*
 

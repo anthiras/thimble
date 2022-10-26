@@ -526,9 +526,8 @@ function validateNavPath(messageEvent: PartialMessageEvent<NavPath>, renderer: R
         renderer.settings.errors.addToTopic(
           topic,
           MISMATCHED_FRAME_ID,
-          `Path poses must all have the same frame_id. "${baseFrameId}" != "${curFrameId}"`,
+          `The path and its poses does not have the same frame_id. "${baseFrameId}" != "${curFrameId}"`,
         );
-        return false;
       }
     }
   }

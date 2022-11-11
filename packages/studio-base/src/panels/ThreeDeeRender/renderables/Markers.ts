@@ -1,12 +1,14 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import "earcut"
 
+import earcut from "earcut";
 import { set } from "lodash";
 
+import { Pose } from "@foxglove/regl-worldview";
 import { toNanoSec } from "@foxglove/rostime";
 import { SettingsTreeAction } from "@foxglove/studio";
+import { Header } from "@foxglove/studio-base/types/Messages";
 
 import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
@@ -20,12 +22,23 @@ import {
   normalizeVector3,
   normalizeVector3s,
 } from "../normalizeMessages";
-import { ColorRGBA, Marker, MarkerArray, MarkerType, MARKER_ARRAY_DATATYPES, MARKER_DATATYPES, MirZoneActionType, MIR_NAVIGATION_MAP, MIR_NAVIGATION_MAP_DATATYPES, MIR_ZONE, MIR_ZONE_ACTION, Point } from "../ros";
+import {
+  ColorRGBA,
+  Marker,
+  MarkerArray,
+  MarkerType,
+  MARKER_ARRAY_DATATYPES,
+  MARKER_DATATYPES,
+  MirZoneActionType,
+  MIR_NAVIGATION_MAP,
+  MIR_NAVIGATION_MAP_DATATYPES,
+  MIR_ZONE,
+  MIR_ZONE_ACTION,
+  Point,
+} from "../ros";
 import { BaseSettings } from "../settings";
 import { makePose } from "../transforms";
 import { LayerSettingsMarkerNamespace, TopicMarkers } from "./TopicMarkers";
-import { Header } from "@foxglove/studio-base/types/Messages";
-import { Pose } from "@foxglove/regl-worldview";
 
 export type LayerSettingsMarker = BaseSettings & {
   color: string | undefined;
@@ -42,7 +55,7 @@ export class Markers extends SceneExtension<TopicMarkers> {
   public constructor(renderer: Renderer) {
     super("foxglove.Markers", renderer);
 
-    renderer.addDatatypeSubscriptions(MIR_NAVIGATION_MAP_DATATYPES,this.handleMirNavigationMap);
+    renderer.addDatatypeSubscriptions(MIR_NAVIGATION_MAP_DATATYPES, this.handleMirNavigationMap);
     renderer.addDatatypeSubscriptions(MARKER_ARRAY_DATATYPES, this.handleMarkerArray);
     renderer.addDatatypeSubscriptions(MARKER_DATATYPES, this.handleMarker);
   }
@@ -86,13 +99,12 @@ export class Markers extends SceneExtension<TopicMarkers> {
 
         entries.push({ path: ["topics", topic.name], node });
       }
-      if (MIR_NAVIGATION_MAP_DATATYPES.has(topic.schemaName)){
-
+      if (MIR_NAVIGATION_MAP_DATATYPES.has(topic.schemaName)) {
         const node: SettingsTreeNodeWithActionHandler = {
           label: topic.name,
           icon: "Shapes",
           order: topic.name.toLocaleLowerCase(),
-          fields: { },
+          fields: {},
           visible: DEFAULT_SETTINGS.visible,
           handler: this.handleSettingsAction,
         };
@@ -193,15 +205,17 @@ export class Markers extends SceneExtension<TopicMarkers> {
     this.updateSettingsTree();
   };
 
-  private handleMirNavigationMap = (messageEvent: PartialMessageEvent<MIR_NAVIGATION_MAP>) : void => {
+  private handleMirNavigationMap = (
+    messageEvent: PartialMessageEvent<MIR_NAVIGATION_MAP>,
+  ): void => {
     const topic = messageEvent.topic;
     const navMap = messageEvent.message;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
 
     for (const zonesMsg of navMap.zones ?? []) {
-      const marker = normalizeMirZone(zonesMsg,navMap.header);
+      const marker = normalizeMirZone(zonesMsg, navMap.header);
       this.addMarker(topic, marker, receiveTime);
-      const text_marker = normalizeMirZoneText(zonesMsg,navMap.header);
+      const text_marker = normalizeMirZoneText(zonesMsg, navMap.header);
       this.addMarker(topic, text_marker, receiveTime);
     }
   };
@@ -297,148 +311,156 @@ function normalizeMarker(marker: PartialMessage<Marker>): Marker {
   };
 }
 
-function normalizeMirZone(zone: PartialMessage<MIR_ZONE>, header: PartialMessage<Header> | undefined): Marker {
-  zone.polygon?.push({x:zone?.polygon[0]?.x,y:zone?.polygon[0]?.y,z:zone?.polygon[0]?.z});
-  let color : ColorRGBA = {r:1,g:0,b:0,a:1};
+function normalizeMirZone(
+  zone: PartialMessage<MIR_ZONE>,
+  header: PartialMessage<Header> | undefined,
+): Marker {
+  zone.polygon?.push({ x: zone.polygon[0]?.x, y: zone.polygon[0]?.y, z: zone.polygon[0]?.z });
   return {
     header: normalizeHeader(header),
-    ns: getMirNameSpace(zone?.actions) + zone.name ?? "",
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/restrict-plus-operands
+    ns: getMirNameSpace(zone.actions) + zone.name ?? "",
     id: 0,
     type: MarkerType.TRIANGLE_LIST,
     action: 0,
-    pose: normalizePose({position:{x:0,y:0,z:0},orientation:{x:0,y:0,z:0,w:1}}),
-    scale: normalizeVector3({x:0.1,y:0.1,z:0.1}),
-    color: normalizeColorRGBA(getMirZoneColor(zone?.actions)),
+    pose: normalizePose({
+      position: { x: 0, y: 0, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 },
+    }),
+    scale: normalizeVector3({ x: 0.1, y: 0.1, z: 0.1 }),
+    color: normalizeColorRGBA(getMirZoneColor(zone.actions)),
     lifetime: normalizeTime({}),
     frame_locked: false,
-    points: normalizeVector3s(zone.polygon),
+    points: normalizeVector3s(getMirTriangles(zone.polygon)),
     colors: normalizeColorRGBAs([]),
     text: "",
-    mesh_resource:  "",
+    mesh_resource: "",
     mesh_use_embedded_materials: false,
   };
-};
+}
 
-function normalizeMirZoneText(zone: PartialMessage<MIR_ZONE>, header: PartialMessage<Header> | undefined): Marker {
-  zone.polygon?.push({x:zone?.polygon[0]?.x,y:zone?.polygon[0]?.y,z:zone?.polygon[0]?.z});
-  let color : ColorRGBA = {r:1,g:0,b:0,a:1};
+function normalizeMirZoneText(
+  zone: PartialMessage<MIR_ZONE>,
+  header: PartialMessage<Header> | undefined,
+): Marker {
+  zone.polygon?.push({ x: zone.polygon[0]?.x, y: zone.polygon[0]?.y, z: zone.polygon[0]?.z });
   return {
     header: normalizeHeader(header),
-    ns: getMirNameSpace(zone?.actions) + zone.name + " text" ?? "",
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/restrict-plus-operands
+    ns: getMirNameSpace(zone.actions) + zone.name + " text" ?? "",
     id: 0,
     type: 9,
     action: 0,
     pose: normalizePose(getMirTextPose(zone.polygon)),
-    scale: normalizeVector3({x:0.25,y:0.25,z:0.25}),
-    color: normalizeColorRGBA({ r: 0, g: 0,b: 0, a: 1}),
+    scale: normalizeVector3({ x: 0.25, y: 0.25, z: 0.25 }),
+    color: normalizeColorRGBA({ r: 0, g: 0, b: 0, a: 1 }),
     lifetime: normalizeTime({}),
     frame_locked: false,
     points: normalizeVector3s([]),
     colors: normalizeColorRGBAs([]),
     text: zone.name ?? "",
-    mesh_resource:  "",
+    mesh_resource: "",
     mesh_use_embedded_materials: false,
   };
-};
+}
 
-function getMirZoneColor(zone_actions: PartialMessage<MIR_ZONE_ACTION[]> | undefined) : ColorRGBA {
-  let color : ColorRGBA = { r: 0, g: 0,b: 0, a: 0};
-  if (!zone_actions){
+function getMirZoneColor(zone_actions: PartialMessage<MIR_ZONE_ACTION[]> | undefined): ColorRGBA {
+  let color: ColorRGBA = { r: 0, g: 0, b: 0, a: 0 };
+  if (!zone_actions) {
     return color;
   }
 
-  console.log(zone_actions[0]?.type);
-  switch(zone_actions[0]?.type) {
+  switch (zone_actions[0]?.type) {
     case MirZoneActionType.MAX_SPEED: {
-       // Speed zone;
-       color = { r: 238/255, g: 75/255,b: 43/255, a: 0.75};
-       break;
+      // Speed zone;
+      color = { r: 238 / 255, g: 75 / 255, b: 43 / 255, a: 0.75 };
+      break;
     }
     case MirZoneActionType.FLEET_EVACUATION:
     case MirZoneActionType.FLEET_LOCK: {
-       // Fleet lock zone;
-       color = { r: 173/255, g: 216/255,b: 230/255, a: 0.75};
-       break;
+      // Fleet lock zone;
+      color = { r: 173 / 255, g: 216 / 255, b: 230 / 255, a: 0.75 };
+      break;
     }
     case MirZoneActionType.PLANNER_LOOK_AHEAD:
     case MirZoneActionType.OBSTACLE_HISTORY_POLICY:
     case MirZoneActionType.PATH_DEVIATION:
-      // Path deviation
     case MirZoneActionType.PATH_TIMEOUT: {
-      // Path timeout;
-      color = { r: 191/255, g: 64/255,b: 191/255, a: 0.75};
+      color = { r: 191 / 255, g: 64 / 255, b: 191 / 255, a: 0.75 };
       break;
-   }
-    default: {
-       //statements;
-       break;
     }
- }
+    default: {
+      //statements;
+      break;
+    }
+  }
   return color;
-};
+}
 
-function getMirNameSpace(zone_actions: PartialMessage<MIR_ZONE_ACTION[]> | undefined) : string {
-  if (!zone_actions){
+function getMirNameSpace(zone_actions: PartialMessage<MIR_ZONE_ACTION[]> | undefined): string {
+  if (!zone_actions) {
     return "";
   }
 
-  let namespace : string = "";
-  switch(zone_actions[0]?.type || 0) {
+  let namespace: string = "";
+  switch (zone_actions[0]?.type) {
     case MirZoneActionType.MAX_SPEED: {
-       // Speed zone;
-       namespace = "speed_zone/";
-       break;
+      // Speed zone;
+      namespace = "speed_zone/";
+      break;
     }
     case MirZoneActionType.FLEET_EVACUATION:
     case MirZoneActionType.FLEET_LOCK: {
-       // Fleet lock zone;
-       namespace = "fleet_lock_zone/";
-       break;
+      // Fleet lock zone;
+      namespace = "fleet_lock_zone/";
+      break;
     }
     case MirZoneActionType.PLANNER_LOOK_AHEAD:
     case MirZoneActionType.OBSTACLE_HISTORY_POLICY:
     case MirZoneActionType.PATH_DEVIATION:
-    case MirZoneActionType.PATH_TIMEOUT:  {
+    case MirZoneActionType.PATH_TIMEOUT: {
       namespace = "planner_zone/";
       break;
-   }
-    default: {
-       //statements;
-       break;
     }
- }
+    default: {
+      //statements;
+      break;
+    }
+  }
   return namespace;
 }
 
-function getMirTextPose(points : PartialMessage<Point[]> | undefined) : Pose {
-  if (!points){
-    return {position:{x:0,y:0,z:0},orientation:{x:0,y:0,z:0,w:1}};
+function getMirTextPose(points: PartialMessage<Point[]> | undefined): Pose {
+  if (!points) {
+    return { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } };
   }
-  let x : number = 0;
-  let y : number = 0;
-  points.forEach(function(value){
+  let x: number = 0;
+  let y: number = 0;
+  points.forEach((value) => {
     x += value.x ?? 0;
     y += value.y ?? 0;
   });
   x /= points.length;
   y /= points.length;
-  return {position:{x:x,y:y,z:0},orientation:{x:0,y:0,z:0,w:1}};
+
+  return { position: { x, y, z: 0.25 }, orientation: { x: 0, y: 0, z: 0, w: 1 } };
 }
 
-// function getMirTriangles(points : PartialMessage<Point[]> | undefined) : Point[] {
-//   if (!points){
-//     return [];
-//   }
-//   let x: number[] = [];
+function getMirTriangles(points: PartialMessage<Point[]> | undefined): Point[] {
+  if (!points) {
+    return [];
+  }
+  const x: number[] = [];
 
-//   points.forEach(function(value){
-//     x.push(value.x ?? 0);
-//     x.push(value.y ?? 0);
-//   });
-//   let triangles : number[] = earcut(x,[],2);
-//   let output : Point[] = [];
-//   // triangles.forEach(function(value){
-//   //   output.push({x:value.a.x,y:value.a.y,z:0});
-//   // });
-//   return output;
-// }
+  points.forEach((value) => {
+    x.push(value.x ?? 0);
+    x.push(value.y ?? 0);
+  });
+
+  const triangles: number[] = earcut(x);
+  const output: Point[] = [];
+  triangles.forEach((value) => {
+    output.push(normalizeVector3(points[value]));
+  });
+  return output;
+}

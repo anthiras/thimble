@@ -40,6 +40,22 @@ export enum MarkerType {
   TRIANGLE_LIST = 11,
 }
 
+export enum MirZoneActionType {
+  MAX_SPEED = 1,
+  PLAY_SOUND = 2,
+  DISABLE_3D_CAMERAS = 3,
+  DISABLE_LOCALIZATION = 4,
+  FLEET_EVACUATION = 5,
+  FLEET_LOCK = 6,
+  IO_MODULE = 7,
+  WARNING_LIGHT = 8,
+  PLANNER_LOOK_AHEAD = 9,
+  OBSTACLE_HISTORY_POLICY = 10,
+  PATH_DEVIATION = 11,
+  PATH_TIMEOUT = 12,
+  PLC_REGISTER = 13,
+}
+
 export enum MarkerAction {
   ADD = 0,
   MODIFY = 0,
@@ -159,6 +175,36 @@ export type PointCloud2 = {
   row_step: number;
   data: Uint8Array;
   is_dense: boolean;
+};
+
+export type MIR_KEY_VALUE_PAIR = {
+  key: string;
+  value: string;
+};
+
+export type MIR_ZONE_ACTION = {
+  type: number;
+  parameters: MIR_KEY_VALUE_PAIR[];
+};
+
+export type MIR_ZONE = {
+  id: string;
+  name: string;
+  polygon: Point[]
+  actions: MIR_ZONE_ACTION[];
+};
+
+export type MIR_NAVIGATION_MAP = {
+  header: Header;
+  metadata: MapMetaData;
+  obstacle_map: OccupancyGrid;
+  traffic_map: OccupancyGrid;
+  one_way_map: OccupancyGrid;
+  zones: MIR_ZONE[];
+  initial_pose: PoseWithCovariance;
+  map_id: string;
+  map_checksum: string;
+  map_name: string;
 };
 
 export type MirObstacleCloud = {
@@ -313,6 +359,9 @@ addRosDataType(POINTCLOUD_DATATYPES, "sensor_msgs/PointCloud2");
 
 export const MIR_OBSTACLE_CLOUD = new Set<string>();
 addRosDataType(MIR_OBSTACLE_CLOUD, "mirMsgs/ObstacleCloud");
+
+export const MIR_NAVIGATION_MAP_DATATYPES = new Set<string>();
+addRosDataType(MIR_NAVIGATION_MAP_DATATYPES, "mirMsgs/NavigationMap");
 
 export const LASERSCAN_DATATYPES = new Set<string>();
 addRosDataType(LASERSCAN_DATATYPES, "sensor_msgs/LaserScan");

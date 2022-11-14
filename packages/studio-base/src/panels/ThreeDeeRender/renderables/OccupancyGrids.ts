@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import PNG from "png-ts";
 import * as THREE from "three";
 
 import { toNanoSec } from "@foxglove/rostime";
@@ -19,7 +20,12 @@ import {
   normalizeInt8Array,
   normalizeTime,
 } from "../normalizeMessages";
-import {  OccupancyGrid, OCCUPANCY_GRID_DATATYPES, CostmapData, MIR_COST_MAP_DATATYPE } from "../ros"; // ColorRGBA,
+import {
+  OccupancyGrid,
+  OCCUPANCY_GRID_DATATYPES,
+  CostmapData,
+  MIR_COST_MAP_DATATYPE,
+} from "../ros"; // ColorRGBA,
 import { BaseSettings } from "../settings";
 
 export type LayerSettingsOccupancyGrid = BaseSettings & {
@@ -30,8 +36,6 @@ export type LayerSettingsOccupancyGrid = BaseSettings & {
   // invalidColor: string;
   // anotherColor: string;
 };
-
-import PNG from 'png-ts';
 
 const INVALID_OCCUPANCY_GRID = "INVALID_OCCUPANCY_GRID";
 
@@ -91,7 +95,10 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     const handler = this.handleSettingsAction;
     const entries: SettingsTreeEntry[] = [];
     for (const topic of this.renderer.topics ?? []) {
-      if (OCCUPANCY_GRID_DATATYPES.has(topic.datatype)) {
+      if (
+        OCCUPANCY_GRID_DATATYPES.has(topic.datatype) ||
+        MIR_COST_MAP_DATATYPE.has(topic.datatype)
+      ) {
         const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsOccupancyGrid>;
 
         // prettier-ignore
@@ -156,7 +163,7 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
   private handleCostmapData = (messageEvent: PartialMessageEvent<CostmapData>): void => {
     const new_msg = MirToRos(messageEvent);
     this.handleOccupancyGrid(new_msg);
-  }
+  };
 
   private handleOccupancyGrid = (messageEvent: PartialMessageEvent<OccupancyGrid>): void => {
     const topic = messageEvent.topic;
@@ -212,22 +219,23 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     renderable.userData.frameId = this.renderer.normalizeFrameId(occupancyGrid.header.frame_id);
 
     const png_signature = [-119, 80, 78, 71];
-    if (occupancyGrid.data[0] == png_signature[0]
-      && occupancyGrid.data[1] == png_signature[1]
-      && occupancyGrid.data[2] == png_signature[2]
-      && occupancyGrid.data[3] == png_signature[3]) {
+    if (
+      occupancyGrid.data[0] == png_signature[0] &&
+      occupancyGrid.data[1] == png_signature[1] &&
+      occupancyGrid.data[2] == png_signature[2] &&
+      occupancyGrid.data[3] == png_signature[3]
+    ) {
       const data = new Uint8Array(occupancyGrid.data);
       const pngImage = PNG.load(data);
       const imgData = pngImage.decodePixels();
 
-      var pixels = new Int8Array(imgData.length);
+      const pixels = new Int8Array(imgData.length);
 
-      for (let i = 0; i < pixels.length; i ++) {
+      for (let i = 0; i < pixels.length; i++) {
         pixels[i] = imgData[i]!;
       }
       occupancyGrid.data = pixels;
     }
-
 
     const size = occupancyGrid.info.width * occupancyGrid.info.height;
     if (occupancyGrid.data.length !== size) {
@@ -250,7 +258,7 @@ export class OccupancyGrids extends SceneExtension<OccupancyGridRenderable> {
     }
 
     // Update the occupancy grid texture
-    updateTexture(renderable.userData.topic,texture, occupancyGrid); // , renderable.userData.settings
+    updateTexture(renderable.userData.topic, texture, occupancyGrid); // , renderable.userData.settings
 
     renderable.scale.set(resolution * width, resolution * height, 1);
   }
@@ -336,12 +344,12 @@ function updateTexture(
   // srgbToLinearUint8(tempInvalidColor);
 
   const data = occupancyGrid.data;
-  switch (topic){
+  switch (topic) {
     case "/traffic_map":
       for (let i = 0; i < size; i++) {
-        const value = data[i]! & 0xFF;
+        const value = data[i]! & 0xff;
         const offset = i * 4;
-        switch (value){
+        switch (value) {
           case 0:
             rgba[offset + 0] = 0;
             rgba[offset + 1] = 255;
@@ -365,7 +373,7 @@ function updateTexture(
       break;
     case "/one_way_map":
       for (let i = 0; i < size; i++) {
-        const value = data[i]! & 0xFF;
+        const value = data[i]! & 0xff;
         const offset = i * 4;
         let red = 0;
         let green = 0;
@@ -374,35 +382,43 @@ function updateTexture(
         if (value == 255) {
           alpha = 0;
         }
-        if ((value & 0b11000111) == 0b11000111) { // 0 degrees
+        if ((value & 0b11000111) == 0b11000111) {
+          // 0 degrees
           red |= 0b10000000;
         }
 
-        if ((value & 0b10001111) == 0b10001111) { // +45 degrees
+        if ((value & 0b10001111) == 0b10001111) {
+          // +45 degrees
           green |= 0b01000000;
         }
 
-        if ((value & 0b00011111) == 0b00011111) { // +90 degrees
+        if ((value & 0b00011111) == 0b00011111) {
+          // +90 degrees
           red |= 0b00100000;
         }
 
-        if ((value & 0b00111110) == 0b00111110) { // +135 degrees
+        if ((value & 0b00111110) == 0b00111110) {
+          // +135 degrees
           blue |= 0b10000000;
         }
 
-        if ((value & 0b01111100) == 0b01111100) { // +/-180 degrees
+        if ((value & 0b01111100) == 0b01111100) {
+          // +/-180 degrees
           green |= 0b00100000;
         }
 
-        if ((value & 0b11111000) == 0b11111000) { // -135 degrees
+        if ((value & 0b11111000) == 0b11111000) {
+          // -135 degrees
           green |= 0b10000000;
         }
 
-        if ((value & 0b11110001) == 0b11110001) { // -90 degrees
+        if ((value & 0b11110001) == 0b11110001) {
+          // -90 degrees
           red |= 0b01000000;
         }
 
-        if ((value & 0b11100011) == 0b11100011) { // -45 degrees
+        if ((value & 0b11100011) == 0b11100011) {
+          // -45 degrees
           blue |= 0b01000000;
         }
         rgba[offset + 0] = red;
@@ -411,11 +427,46 @@ function updateTexture(
         rgba[offset + 3] = alpha;
       }
       break;
+    case "/move_base_node/local_costmap/costmap_data":
+      for (let i = 0; i < size; i++) {
+        const value = data[i]! & 0xff;
+        const offset = i * 4;
+        switch (value) {
+          case 0:
+            // Free
+            rgba[offset + 0] = 0;
+            rgba[offset + 1] = 0;
+            rgba[offset + 2] = 0;
+            rgba[offset + 3] = 0;
+            break;
+          case 1:
+            // Obstacle
+            rgba[offset + 0] = 0x00;
+            rgba[offset + 1] = 0x00;
+            rgba[offset + 2] = 0x8b;
+            rgba[offset + 3] = 128;
+            break;
+          case 2:
+            // Inflated
+            rgba[offset + 0] = 0x39;
+            rgba[offset + 1] = 0xff;
+            rgba[offset + 2] = 0x14;
+            rgba[offset + 3] = 128;
+            break;
+          default:
+            rgba[offset + 0] = 0;
+            rgba[offset + 1] = 0;
+            rgba[offset + 2] = 0;
+            rgba[offset + 3] = 0;
+            break;
+        }
+      }
+      break;
     default:
       for (let i = 0; i < size; i++) {
-        const value = data[i]! & 0xFF;
+        const value = data[i]! & 0xff;
         const offset = i * 4;
-        switch (value){
+        switch (value) {
           case 0:
             rgba[offset + 0] = 255;
             rgba[offset + 1] = 255;
@@ -456,7 +507,6 @@ function updateTexture(
       }
       break;
   }
-
 
   texture.needsUpdate = true;
 }
@@ -505,14 +555,13 @@ function createPickingMaterial(texture: THREE.DataTexture): THREE.ShaderMaterial
   });
 }
 
-function occupancyGridHasTransparency(): boolean { // settings: LayerSettingsOccupancyGrid
+function occupancyGridHasTransparency(): boolean {
+  // settings: LayerSettingsOccupancyGrid
   // stringToRgba(tempMinColor, settings.minColor);
   // stringToRgba(tempMaxColor, settings.maxColor);
   // stringToRgba(tempUnknownColor, settings.unknownColor);
   // stringToRgba(tempInvalidColor, settings.invalidColor);
-  return (
-    true
-  );
+  return true;
 }
 
 // function srgbToLinearUint8(color: ColorRGBA): void {
@@ -522,49 +571,52 @@ function occupancyGridHasTransparency(): boolean { // settings: LayerSettingsOcc
 //   color.a = Math.trunc(color.a * 255);
 // }
 
-function MirToRos(messageEvent: PartialMessageEvent<CostmapData>) : PartialMessageEvent<OccupancyGrid> {
-  console.log("We are here!");
-  const occupancy_grid_data = new Int8Array(messageEvent.message.data?.length!);
+function MirToRos(
+  messageEvent: PartialMessageEvent<CostmapData>,
+): PartialMessageEvent<OccupancyGrid> {
   const width = messageEvent.message.width!;
   const height = messageEvent.message.height!;
+  const occupancy_grid_data = new Int8Array(width * height);
   const offset_x = messageEvent.message.offset_x!;
   const offset_y = messageEvent.message.offset_y!;
-  console.log(occupancy_grid_data.length);
-  for (let y = 0; y < width; y ++) {
-    for (let x = 0; x < height; x ++) {
-      const index  = (width * y + x) / 4;
-      const offset = 6 - (((width * y + x) % 4) * 2);
-      const value = messageEvent.message.data![index] ;
-      occupancy_grid_data[(width * y + x)] = (value! >> offset) & 3;
+
+  for (let y = 0; y < width; y++) {
+    const cur_width = width * y;
+    for (let x = cur_width; x < height + cur_width; x++) {
+      const index = x >>> 2;
+      const offset = 6 - (x % 4 << 1);
+      const value = messageEvent.message.data![index];
+      if (value == undefined) {
+        occupancy_grid_data[x] = (0 >> offset) & 3;
+      } else {
+        occupancy_grid_data[x] = (value >> offset) & 3;
+      }
     }
   }
 
   return {
-        topic: messageEvent.topic,
-        schemaName: messageEvent.schemaName,
-        receiveTime: messageEvent.receiveTime,
-        publishTime: messageEvent.publishTime,
-        message: {
-          header: messageEvent.message.header,
-          info: {
-            map_load_time: {
-              sec: 0,
-              nsec: 0,
-            },
-            resolution: messageEvent.message.resolution,
-            width: width,
-            height: height,
-            origin: {
-              position: {x:offset_x, y:offset_y, z:0},
-              orientation: {x:
-                0, y:0, z:0,w: 1
-              }
-              ,
-            },
-          },
-          data: occupancy_grid_data,
+    topic: messageEvent.topic,
+    schemaName: messageEvent.schemaName,
+    receiveTime: messageEvent.receiveTime,
+    publishTime: messageEvent.publishTime,
+    message: {
+      header: messageEvent.message.header,
+      info: {
+        map_load_time: {
+          sec: 0,
+          nsec: 0,
         },
-        sizeInBytes: messageEvent.sizeInBytes,
+        resolution: messageEvent.message.resolution,
+        width,
+        height,
+        origin: {
+          position: { x: offset_x, y: offset_y, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 },
+        },
+      },
+      data: occupancy_grid_data,
+    },
+    sizeInBytes: messageEvent.sizeInBytes,
   };
 }
 

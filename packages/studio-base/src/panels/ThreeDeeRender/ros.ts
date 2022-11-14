@@ -190,7 +190,7 @@ export type MIR_ZONE_ACTION = {
 export type MIR_ZONE = {
   id: string;
   name: string;
-  polygon: Point[]
+  polygon: Point[];
   actions: MIR_ZONE_ACTION[];
 };
 
@@ -213,6 +213,23 @@ export type MirObstacleCloud = {
   inflation_radius: number;
   cell_width: number;
   cell_height: number;
+};
+
+export type MirRobotState = {
+  pose_x: number;
+  pose_y: number;
+  pose_theta: number;
+  velocity_x: number;
+  velocity_theta: number;
+  hook_angle: number;
+};
+
+export type MirRobotStatePath = {
+  header: Header;
+  path: MirRobotState[];
+  has_trolley: boolean;
+  robot_to_trolley_dist: number;
+  current_id: number;
 };
 
 export type LaserScan = {
@@ -364,17 +381,8 @@ addRosDataType(MARKER_ARRAY_DATATYPES, "studio_msgs/MarkerArray");
 export const OCCUPANCY_GRID_DATATYPES = new Set<string>();
 addRosDataType(OCCUPANCY_GRID_DATATYPES, "nav_msgs/OccupancyGrid");
 
-export const MIR_COST_MAP_DATATYPE = new Set<string>();
-addRosDataType(MIR_COST_MAP_DATATYPE, "mirMsgs/CostmapData");
-
 export const POINTCLOUD_DATATYPES = new Set<string>();
 addRosDataType(POINTCLOUD_DATATYPES, "sensor_msgs/PointCloud2");
-
-export const MIR_OBSTACLE_CLOUD = new Set<string>();
-addRosDataType(MIR_OBSTACLE_CLOUD, "mirMsgs/ObstacleCloud");
-
-export const MIR_NAVIGATION_MAP_DATATYPES = new Set<string>();
-addRosDataType(MIR_NAVIGATION_MAP_DATATYPES, "mirMsgs/NavigationMap");
 
 export const LASERSCAN_DATATYPES = new Set<string>();
 addRosDataType(LASERSCAN_DATATYPES, "sensor_msgs/LaserScan");
@@ -408,6 +416,18 @@ addRosDataType(POLYGON_STAMPED_DATATYPES, "geometry_msgs/PolygonStamped");
 
 export const JOINTSTATE_DATATYPES = new Set<string>();
 addRosDataType(JOINTSTATE_DATATYPES, "sensor_msgs/JointState");
+
+export const MIR_COST_MAP_DATATYPE = new Set<string>();
+addRosDataType(MIR_COST_MAP_DATATYPE, "mirMsgs/CostmapData");
+
+export const MIR_OBSTACLE_CLOUD = new Set<string>();
+addRosDataType(MIR_OBSTACLE_CLOUD, "mirMsgs/ObstacleCloud");
+
+export const MIR_NAVIGATION_MAP_DATATYPES = new Set<string>();
+addRosDataType(MIR_NAVIGATION_MAP_DATATYPES, "mirMsgs/NavigationMap");
+
+export const MIR_ROBOT_STATE_PATH_DATATYPES = new Set<string>();
+addRosDataType(MIR_ROBOT_STATE_PATH_DATATYPES, "mirMsgs/robot_state_path");
 
 // Expand a single ROS1 dataType into variations for ROS2 and protobufs,
 // then add them to the given output set

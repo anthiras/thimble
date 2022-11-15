@@ -104,9 +104,9 @@ export type PoseArrayUserData = BaseUserData & {
   originalMessage: Record<string, RosValue>;
   axes: Axis[];
   arrows: RenderableArrow[];
-  trolley_arrows: RenderableArrow[];
-  trolley_numbers: number[];
-  robot_angle: number[];
+  trolley_axes: Axis[];
+  trolley_angles: number[];
+  robot_angles: number[];
   trolley_length: number;
   lineStrip?: RenderableLineStrip;
 };
@@ -140,11 +140,11 @@ export class PoseArrayRenderable extends Renderable<PoseArrayUserData> {
   }
 
   public removeTrolley(): void {
-    for (const trolley_arrow of this.userData.trolley_arrows) {
-      this.remove(trolley_arrow);
-      trolley_arrow.dispose();
+    for (const trolley_axes of this.userData.trolley_axes) {
+      this.remove(trolley_axes);
+      trolley_axes.dispose();
     }
-    this.userData.trolley_arrows.length = 0;
+    this.userData.trolley_axes.length = 0;
   }
 
   public removeLineStrip(): void {
@@ -285,9 +285,9 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
         originalMessage,
         axes: [],
         arrows: [],
-        trolley_numbers: [],
-        trolley_arrows: [],
-        robot_angle: [],
+        trolley_angles: [],
+        trolley_axes: [],
+        robot_angles: [],
         trolley_length: 0,
       });
 
@@ -299,14 +299,14 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
       // Bla
       renderable.userData.trolley_length = messageEvent.message.robot_to_trolley_dist ?? 0;
 
-      renderable.userData.robot_angle = [];
+      renderable.userData.robot_angles = [];
       messageEvent.message.path?.forEach((_value) => {
-        renderable!.userData.robot_angle.push(_value.pose_theta ?? 0);
+        renderable!.userData.robot_angles.push(_value.pose_theta ?? 0);
       });
 
-      renderable.userData.trolley_numbers = [];
+      renderable.userData.trolley_angles = [];
       messageEvent.message.path?.forEach((_value) => {
-        renderable!.userData.trolley_numbers.push(_value.hook_angle ?? 0);
+        renderable!.userData.trolley_angles.push(_value.hook_angle ?? 0);
       });
     }
 
@@ -362,9 +362,9 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
         originalMessage,
         axes: [],
         arrows: [],
-        trolley_numbers: [],
-        trolley_arrows: [],
-        robot_angle: [],
+        trolley_angles: [],
+        trolley_axes: [],
+        robot_angles: [],
         trolley_length: 0,
       });
 
@@ -451,42 +451,38 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
     }
   }
 
-  private _createTrolleyArrowsToMatchPoses(
+  private _createTrolleyAxesToMatchPoses(
     renderable: PoseArrayRenderable,
     poseArray: PoseArray,
     topic: string,
   ): void {
-    const color: ColorRGBA = { r: 0, g: 0, b: 1, a: 1 };
-    // Update the arrowMarker of existing RenderableArrow as needed
+    const scale = 0.1 * (1 / AXIS_LENGTH);
+
+    // Update the scale and visibility of existing AxisRenderables as needed
     const existingUpdateCount = Math.min(
-      renderable.userData.trolley_arrows.length,
+      renderable.userData.trolley_axes.length,
       poseArray.poses.length,
     );
     for (let i = 0; i < existingUpdateCount; i++) {
-      const arrowMarker = createArrowMarker(
-        [renderable.userData.trolley_length, 0.025, 0.025],
-        color,
-      );
-      const arrow = renderable.userData.trolley_arrows[i]!;
-      arrow.visible = true;
-      arrow.update(arrowMarker, undefined);
+      const axis = renderable.userData.trolley_axes[i]!;
+      axis.visible = true;
+      axis.scale.set(scale, scale, scale);
     }
 
-    // Create any RenderableArrow as needed
-    for (let i = renderable.userData.trolley_arrows.length; i < poseArray.poses.length; i++) {
-      const arrowMarker = createArrowMarker(
-        [renderable.userData.trolley_length, 0.025, 0.025],
-        color,
-      );
-      const arrow = new RenderableArrow(topic, arrowMarker, undefined, this.renderer);
-      renderable.userData.trolley_arrows.push(arrow);
-      renderable.add(arrow);
+    // Create any AxisRenderables as needed
+    for (let i = renderable.userData.trolley_axes.length; i < poseArray.poses.length; i++) {
+      const axis = new Axis(topic, this.renderer);
+      renderable.userData.trolley_axes.push(axis);
+      renderable.add(axis);
+
+      // Set the scale for each new axis
+      axis.scale.set(scale, scale, scale);
     }
 
-    // Hide any RenderableArrow as needed
-    for (let i = poseArray.poses.length; i < renderable.userData.trolley_arrows.length; i++) {
-      const arrow = renderable.userData.trolley_arrows[i]!;
-      arrow.visible = false;
+    // Hide any AxisRenderables as needed
+    for (let i = poseArray.poses.length; i < renderable.userData.trolley_axes.length; i++) {
+      const axis = renderable.userData.trolley_axes[i]!;
+      axis.visible = false;
     }
   }
 
@@ -562,13 +558,14 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
 
     // Update the pose for each pose renderable
     if (settings.trolley) {
-      this._createTrolleyArrowsToMatchPoses(renderable, poseArrayMessage, topic);
+      this._createTrolleyAxesToMatchPoses(renderable, poseArrayMessage, topic);
       for (let i = 0; i < poseArrayMessage.poses.length; i++) {
         setObjectPoseTrolley(
-          renderable.userData.trolley_arrows[i]!,
+          renderable.userData.trolley_axes[i]!,
           poseArrayMessage.poses[i]!,
-          renderable.userData.trolley_numbers[i]!,
-          renderable.userData.robot_angle[i]!,
+          renderable.userData.trolley_length,
+          renderable.userData.trolley_angles[i]!,
+          renderable.userData.robot_angles[i]!,
         );
       }
     }
@@ -614,16 +611,17 @@ function setObjectPose(object: THREE.Object3D, pose: Pose): void {
 function setObjectPoseTrolley(
   object: THREE.Object3D,
   pose: Pose,
+  trolley_length: number,
   trolley_angle: number,
   robot_angle: number,
 ): void {
   const p = pose.position;
   object.position.set(p.x, p.y, p.z);
 
-  object.quaternion.setFromAxisAngle(
-    new THREE.Vector3(0, 0, 1),
-    robot_angle + trolley_angle + Math.PI,
-  );
+  object.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), robot_angle + trolley_angle);
+
+  object.translateX(-1 * trolley_length);
+
   object.updateMatrix();
 }
 

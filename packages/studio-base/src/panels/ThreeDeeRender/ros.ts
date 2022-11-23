@@ -232,6 +232,28 @@ export type MirRobotStatePath = {
   current_id: number;
 };
 
+export type MirPose2D = {
+  x: number;
+  y: number;
+  orientation: number;
+};
+
+export type MirTwist2D = {
+  linear: number;
+  angular: number;
+};
+
+export type MirTrajectoryPoint = {
+  position: MirPose2D;
+  velocity: MirTwist2D;
+};
+
+export type MirTrajectoryPath = {
+  header: Header;
+  path: MirTrajectoryPoint[];
+  index_for_first_cmd_vel: number;
+};
+
 export type LaserScan = {
   header: Header;
   angle_min: number;
@@ -428,6 +450,9 @@ addRosDataType(MIR_NAVIGATION_MAP_DATATYPES, "mirMsgs/NavigationMap");
 
 export const MIR_ROBOT_STATE_PATH_DATATYPES = new Set<string>();
 addRosDataType(MIR_ROBOT_STATE_PATH_DATATYPES, "mirMsgs/robot_state_path");
+
+export const MIR_TRAJECTORY_PATH_DATATYPES = new Set<string>();
+addRosDataType(MIR_TRAJECTORY_PATH_DATATYPES, "mirMsgs/TrajectoryPath");
 
 // Expand a single ROS1 dataType into variations for ROS2 and protobufs,
 // then add them to the given output set

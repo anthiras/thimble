@@ -28,7 +28,10 @@ import {
   MarkerAction,
   MirRobotStatePath,
   MIR_ROBOT_STATE_PATH_DATATYPES,
+  MirTrajectoryPath,
+  MIR_TRAJECTORY_PATH_DATATYPES,
   MirRobotState,
+  MirTrajectoryPoint,
 } from "../ros";
 import {
   BaseSettings,
@@ -58,13 +61,13 @@ export type LayerSettingsPoseArray = BaseSettings & {
 };
 
 const DEFAULT_TROLLEY = false;
-const DEFAULT_TYPE: DisplayType = "axis";
+const DEFAULT_TYPE: DisplayType = "line";
 const DEFAULT_AXIS_SCALE = AXIS_LENGTH;
 const DEFAULT_ARROW_SCALE: THREE.Vector3Tuple = [1, 0.15, 0.15];
-const DEFAULT_LINE_WIDTH = 0.2;
+const DEFAULT_LINE_WIDTH = 0.05;
 const DEFAULT_GRADIENT: GradientRgba = [
-  { r: 124 / 255, g: 107 / 255, b: 1, a: 1 },
-  { r: 124 / 255, g: 107 / 255, b: 1, a: 0.5 },
+  { r: 0 / 255, g: 255 / 255, b: 0 / 255, a: 1 },
+  { r: 0 / 255, g: 255 / 255, b: 0 / 255, a: 1 },
 ];
 
 const MISMATCHED_FRAME_ID = "MISMATCHED_FRAME_ID";
@@ -164,6 +167,7 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
     renderer.addDatatypeSubscriptions(POSES_IN_FRAME_DATATYPES, this.handlePosesInFrame);
     renderer.addDatatypeSubscriptions(NAV_PATH_DATATYPES, this.handleNavPath);
     renderer.addDatatypeSubscriptions(MIR_ROBOT_STATE_PATH_DATATYPES, this.handleMirRobotStatePath);
+    renderer.addDatatypeSubscriptions(MIR_TRAJECTORY_PATH_DATATYPES, this.handleMirTrajectoryPath);
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -175,7 +179,8 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
         POSE_ARRAY_DATATYPES.has(topic.schemaName) ||
         NAV_PATH_DATATYPES.has(topic.schemaName) ||
         POSES_IN_FRAME_DATATYPES.has(topic.schemaName) ||
-        MIR_ROBOT_STATE_PATH_DATATYPES.has(topic.schemaName)
+        MIR_ROBOT_STATE_PATH_DATATYPES.has(topic.schemaName) ||
+        MIR_TRAJECTORY_PATH_DATATYPES.has(topic.schemaName)
       ) {
         const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsPoseArray>;
         const displayType = config.type ?? getDefaultType(topic);
@@ -254,6 +259,54 @@ export class PoseArrays extends SceneExtension<PoseArrayRenderable> {
     const poseArrayMessage = normalizePoseArray(messageEvent.message);
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     this.addPoseArray(messageEvent.topic, poseArrayMessage, messageEvent.message, receiveTime);
+  };
+
+  private handleMirTrajectoryPath = (
+    messageEvent: PartialMessageEvent<MirTrajectoryPath>,
+  ): void => {
+    const poseArrayMessage = normalizeMirTrajecoryArray(messageEvent.message);
+    const receiveTime = toNanoSec(messageEvent.receiveTime);
+    const topic = messageEvent.topic;
+    const originalMessage: Record<string, RosValue> = messageEvent.message;
+
+    let renderable = this.renderables.get(topic);
+    if (!renderable) {
+      // Set the initial settings from default values merged with any user settings
+      const userSettings = this.renderer.config.topics[topic] as
+        | Partial<LayerSettingsPoseArray>
+        | undefined;
+      const defaultType = { type: getDefaultType(this.renderer.topicsByName?.get(topic)) };
+      const settings = { ...DEFAULT_SETTINGS, ...defaultType, ...userSettings };
+
+      renderable = new PoseArrayRenderable(topic, this.renderer, {
+        receiveTime,
+        messageTime: toNanoSec(poseArrayMessage.header.stamp),
+        frameId: this.renderer.normalizeFrameId(poseArrayMessage.header.frame_id),
+        pose: makePose(),
+        settingsPath: ["topics", topic],
+        settings,
+        topic,
+        poseArrayMessage,
+        originalMessage,
+        axes: [],
+        arrows: [],
+        trolley_angles: [],
+        trolley_axes: [],
+        robot_angles: [],
+        trolley_length: 0,
+      });
+
+      this.add(renderable);
+      this.renderables.set(topic, renderable);
+    }
+
+    this._updatePoseArrayRenderable(
+      renderable,
+      poseArrayMessage,
+      originalMessage,
+      receiveTime,
+      renderable.userData.settings,
+    );
   };
 
   private handleMirRobotStatePath = (
@@ -669,6 +722,18 @@ function normalizeMirPoseArray(
   };
 }
 
+function normalizeMirTrajecoryArray(
+  poseArray: PartialMessage<MirTrajectoryPath> | undefined,
+): PoseArray {
+  if (!poseArray) {
+    return { header: normalizeHeader(undefined), poses: [] };
+  }
+  return {
+    header: normalizeHeader(poseArray.header),
+    poses: poseArray.path?.map((p) => normalizeMirTrajectory(p)) ?? [],
+  };
+}
+
 function normalizeMirPose(input_pose: PartialMessage<MirRobotState> | undefined): Pose {
   if (!input_pose) {
     return normalizePose(undefined);
@@ -681,6 +746,27 @@ function normalizeMirPose(input_pose: PartialMessage<MirRobotState> | undefined)
       x: input_pose.pose_x ?? 0,
       y: input_pose.pose_y ?? 0,
       z: input_pose.velocity_x ?? 0,
+    },
+    orientation: q1,
+  };
+}
+
+function normalizeMirTrajectory(input_pose: PartialMessage<MirTrajectoryPoint> | undefined): Pose {
+  if (!input_pose) {
+    return normalizePose(undefined);
+  }
+  const q1 = new THREE.Quaternion();
+  const euler = new THREE.Euler(
+    -1 * (input_pose.velocity?.angular ?? 0),
+    0,
+    input_pose.position?.orientation,
+  );
+  q1.setFromEuler(euler);
+  return {
+    position: {
+      x: input_pose.position?.x ?? 0,
+      y: input_pose.position?.y ?? 0,
+      z: input_pose.velocity?.linear ?? 0,
     },
     orientation: q1,
   };

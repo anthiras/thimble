@@ -281,6 +281,13 @@ export type OccupancyGrid = {
   data: Int8Array | number[];
 };
 
+export type GridCells = {
+  header: Header;
+  cell_width: number;
+  cell_height: number;
+  cells: Point[];
+};
+
 export type CostmapData = {
   header: Header;
   height: number;
@@ -402,6 +409,9 @@ addRosDataType(MARKER_ARRAY_DATATYPES, "studio_msgs/MarkerArray");
 
 export const OCCUPANCY_GRID_DATATYPES = new Set<string>();
 addRosDataType(OCCUPANCY_GRID_DATATYPES, "nav_msgs/OccupancyGrid");
+
+export const GRID_CELLS_DATATYPES = new Set<string>();
+addRosDataType(GRID_CELLS_DATATYPES, "nav_msgs/GridCells");
 
 export const POINTCLOUD_DATATYPES = new Set<string>();
 addRosDataType(POINTCLOUD_DATATYPES, "sensor_msgs/PointCloud2");

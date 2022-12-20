@@ -42,6 +42,9 @@ import {
   PointFieldType,
   MirObstacleCloud,
   MIR_OBSTACLE_CLOUD,
+  GridCells,
+  GRID_CELLS_DATATYPES,
+  Point,
 } from "../ros";
 import { BaseSettings } from "../settings";
 import { makePose, MAX_DURATION, Pose } from "../transforms";
@@ -91,6 +94,7 @@ type PointCloudAndLaserScanUserData = BaseUserData & {
   topic: string;
   pointCloud?: PointCloud | PointCloud2;
   laserScan?: NormalizedLaserScan;
+  gridCells?: GridCells;
   originalMessage: Record<string, RosValue> | undefined;
   pointsHistory: PointsAtTime[];
   material: Material;
@@ -128,6 +132,7 @@ const ALL_POINTCLOUD_DATATYPES = new Set<string>([
   ...FOXGLOVE_POINTCLOUD_DATATYPES,
   ...ROS_POINTCLOUD_DATATYPES,
   ...MIR_OBSTACLE_CLOUD,
+  ...GRID_CELLS_DATATYPES,
 ]);
 const ALL_LASERSCAN_DATATYPES = new Set<string>([
   ...FOXGLOVE_LASERSCAN_DATATYPES,
@@ -195,6 +200,7 @@ export class PointCloudAndLaserScanRenderable extends Renderable<PointCloudAndLa
   public override dispose(): void {
     this.userData.pointCloud = undefined;
     this.userData.laserScan = undefined;
+    this.userData.gridCells = undefined;
     this.userData.originalMessage = undefined;
     for (const entry of this.userData.pointsHistory) {
       entry.points.geometry.dispose();
@@ -241,6 +247,77 @@ export class PointCloudAndLaserScanRenderable extends Renderable<PointCloudAndLa
     }
   }
 
+  public updateGridCells(
+    this: PointCloudAndLaserScanRenderable,
+    gridCells: GridCells,
+    originalMessage: RosObject | undefined,
+    settings: LayerSettingsPointCloudAndLaserScan,
+    receiveTime: bigint,
+  ): void {
+    const messageTime = toNanoSec(gridCells.header.stamp);
+    this.userData.receiveTime = receiveTime;
+    this.userData.messageTime = messageTime;
+    this.userData.frameId = this.renderer.normalizeFrameId(gridCells.header.frame_id);
+    this.userData.gridCells = gridCells;
+    this.userData.pointCloud = undefined;
+    this.userData.laserScan = undefined;
+    this.userData.originalMessage = originalMessage;
+
+    const prevSettings = this.userData.settings;
+    this.userData.settings = settings;
+
+    let material = this.userData.material as THREE.PointsMaterial;
+    const needsRebuild =
+      colorHasTransparency(settings) !== material.transparent ||
+      pointCloudColorEncoding(settings) !== pointCloudColorEncoding(prevSettings) ||
+      settings.pointShape !== prevSettings.pointShape;
+
+    if (needsRebuild) {
+      material.dispose();
+      material = pointCloudMaterial(settings);
+      this.userData.material = material;
+      for (const entry of this.userData.pointsHistory) {
+        entry.points.material = material;
+      }
+    } else {
+      material.size = settings.pointSize;
+    }
+
+    const topic = this.userData.topic;
+    const pointsHistory = this.userData.pointsHistory;
+    const isDecay = settings.decayTime > 0;
+    if (isDecay) {
+      // Push a new (empty) entry to the history of points
+      const geometry = createGeometry(topic, THREE.StaticDrawUsage);
+      const points = createPoints(
+        topic,
+        makePose(),
+        geometry,
+        material,
+        this.userData.pickingMaterial,
+        undefined,
+      );
+      pointsHistory.push({ receiveTime, messageTime, points });
+      this.add(points);
+    }
+
+    const latestEntry = pointsHistory[pointsHistory.length - 1];
+    if (!latestEntry) {
+      throw new Error(`pointsHistory is empty for ${topic}`);
+    }
+
+    latestEntry.receiveTime = receiveTime;
+    latestEntry.messageTime = messageTime;
+
+    const pointCount = Math.trunc(gridCells.cells.length);
+    latestEntry.points.geometry.resize(pointCount);
+    const positionAttribute = latestEntry.points.geometry.attributes.position!;
+    const colorAttribute = latestEntry.points.geometry.attributes.color!;
+
+    // Iterate the point cloud data to update position and color attributes
+    this._updateGridCellsBuffers(gridCells, settings, positionAttribute, colorAttribute);
+  }
+
   public updatePointCloud(
     this: PointCloudAndLaserScanRenderable,
     pointCloud: PointCloud | PointCloud2,
@@ -253,6 +330,7 @@ export class PointCloudAndLaserScanRenderable extends Renderable<PointCloudAndLa
     this.userData.messageTime = messageTime;
     this.userData.frameId = this.renderer.normalizeFrameId(getFrameId(pointCloud));
     this.userData.pointCloud = pointCloud;
+    this.userData.gridCells = undefined;
     this.userData.laserScan = undefined;
     this.userData.originalMessage = originalMessage;
 
@@ -540,6 +618,37 @@ export class PointCloudAndLaserScanRenderable extends Renderable<PointCloudAndLa
     output[1] = maxColorValue;
   }
 
+  private _updateGridCellsBuffers(
+    gridCells: GridCells,
+    settings: LayerSettingsPointCloudAndLaserScan,
+    positionAttribute: THREE.BufferAttribute,
+    colorAttribute: THREE.BufferAttribute,
+  ): void {
+    const data = gridCells.cells;
+    positionAttribute.copyVector3sArray(data);
+
+    // Iterate the point cloud data to determine min/max color values (if needed)
+    const minColorValue = 0;
+    const maxColorValue = 0;
+
+    // Build a method to convert raw color field values to RGBA
+    const colorConverter = getColorConverter(settings, minColorValue, maxColorValue);
+    for (let i = 0; i < data.length; i++) {
+      // Update color attribute
+      colorConverter(tempColor, 0);
+      colorAttribute.setXYZW(
+        i,
+        (tempColor.r * 255) | 0,
+        (tempColor.g * 255) | 0,
+        (tempColor.b * 255) | 0,
+        (tempColor.a * 255) | 0,
+      );
+    }
+
+    positionAttribute.needsUpdate = true;
+    colorAttribute.needsUpdate = true;
+  }
+
   private _updatePointCloudBuffers(
     pointCloud: PointCloud | PointCloud2,
     readers: PointCloudFieldReaders,
@@ -596,6 +705,7 @@ export class PointCloudAndLaserScanRenderable extends Renderable<PointCloudAndLa
     this.userData.messageTime = messageTime;
     this.userData.frameId = this.renderer.normalizeFrameId(laserScan.frame_id);
     this.userData.pointCloud = undefined;
+    this.userData.gridCells = undefined;
     this.userData.laserScan = laserScan;
     this.userData.originalMessage = originalMessage;
 
@@ -770,6 +880,7 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
     super("foxglove.PointCloudsAndLaserScans", renderer);
 
     renderer.addDatatypeSubscriptions(MIR_OBSTACLE_CLOUD, this.handleMirPointCloud);
+    renderer.addDatatypeSubscriptions(GRID_CELLS_DATATYPES, this.handleGridCells);
     renderer.addDatatypeSubscriptions(ROS_POINTCLOUD_DATATYPES, this.handleRosPointCloud);
     renderer.addDatatypeSubscriptions(FOXGLOVE_POINTCLOUD_DATATYPES, this.handleFoxglovePointCloud);
     renderer.addDatatypeSubscriptions(ROS_LASERSCAN_DATATYPES, this.handleLaserScan);
@@ -840,6 +951,13 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
       } else if (renderable.userData.laserScan) {
         renderable.updateLaserScan(
           renderable.userData.laserScan,
+          renderable.userData.originalMessage,
+          settings,
+          renderable.userData.receiveTime,
+        );
+      } else if (renderable.userData.gridCells) {
+        renderable.updateGridCells(
+          renderable.userData.gridCells,
           renderable.userData.originalMessage,
           settings,
           renderable.userData.receiveTime,
@@ -929,10 +1047,90 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
     );
   };
 
+  private handleGridCells = (messageEvent: PartialMessageEvent<GridCells>): void => {
+    const topic = messageEvent.topic;
+    const gridCells = normalizeGridCells(messageEvent.message);
+    const receiveTime = toNanoSec(messageEvent.receiveTime);
+    let renderable = this.renderables.get(topic);
+    if (!renderable) {
+      // Set the initial settings from default values merged with any user settings
+      const userSettings = this.renderer.config.topics[topic] as
+        | Partial<LayerSettingsPointCloudAndLaserScan>
+        | undefined;
+      const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+      if (settings.colorField == undefined) {
+        settings.colorMode = "rgb";
+        settings.rgbByteOrder = "abgr";
+
+        // Update user settings with the newly selected color field
+        this.renderer.updateConfig((draft) => {
+          const updatedUserSettings = { ...userSettings };
+          updatedUserSettings.colorField = settings.colorField;
+          updatedUserSettings.colorMode = settings.colorMode;
+          updatedUserSettings.colorMap = settings.colorMap;
+          draft.topics[topic] = updatedUserSettings;
+        });
+      }
+
+      const isDecay = settings.decayTime > 0;
+      const geometry = createGeometry(
+        topic,
+        isDecay ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage,
+      );
+
+      const material = pointCloudMaterial(settings);
+      const pickingMaterial = createPickingMaterial(settings);
+      const instancePickingMaterial = createInstancePickingMaterial(settings);
+      const points = createPoints(
+        topic,
+        makePose(),
+        geometry,
+        material,
+        pickingMaterial,
+        instancePickingMaterial,
+      );
+
+      const messageTime = toNanoSec(gridCells.header.stamp);
+      renderable = new PointCloudAndLaserScanRenderable(topic, this.renderer, {
+        receiveTime,
+        messageTime,
+        frameId: this.renderer.normalizeFrameId(gridCells.header.frame_id),
+        pose: makePose(),
+        settingsPath: ["topics", topic],
+        settings,
+        topic,
+        gridCells,
+        originalMessage: messageEvent.message as RosObject,
+        pointsHistory: [{ receiveTime, messageTime, points }],
+        material,
+        pickingMaterial,
+        instancePickingMaterial,
+      });
+      renderable.add(points);
+
+      this.add(renderable);
+      this.renderables.set(topic, renderable);
+    }
+    // Update the mapping of topic to point cloud field names if necessary
+    // let fields = this.pointCloudFieldsByTopic.get(topic);
+    // if (!fields || fields.length !== pointCloud.fields.length) {
+    //   fields = pointCloud.fields.map((field) => field.name);
+    //   this.pointCloudFieldsByTopic.set(topic, fields);
+    //   this.updateSettingsTree();
+    // }
+
+    renderable.updateGridCells(
+      gridCells,
+      messageEvent.message as RosObject,
+      renderable.userData.settings,
+      receiveTime,
+    );
+  };
+
   private handleMirPointCloud = (messageEvent: PartialMessageEvent<MirObstacleCloud>): void => {
     const new_msg = MirToRos(messageEvent);
     this.handleRosPointCloud(new_msg);
-  }
+  };
 
   private handleRosPointCloud = (messageEvent: PartialMessageEvent<PointCloud2>): void => {
     const topic = messageEvent.topic;
@@ -1707,6 +1905,22 @@ function normalizePointCloud(message: PartialMessage<PointCloud>): PointCloud {
   };
 }
 
+function normalizePoint(msg: PartialMessage<Point> | undefined): Point {
+  if (!msg) {
+    return { x: 0, y: 0, z: 0 };
+  }
+  return { x: msg.x ?? 0, y: msg.y ?? 0, z: msg.z ?? 0 };
+}
+
+function normalizeGridCells(message: PartialMessage<GridCells>): GridCells {
+  return {
+    header: normalizeHeader(message.header),
+    cell_width: message.cell_width ?? 0,
+    cell_height: message.cell_height ?? 0,
+    cells: message.cells?.map((p) => normalizePoint(p)) ?? [],
+  };
+}
+
 function normalizePointCloud2(message: PartialMessage<PointCloud2>): PointCloud2 {
   return {
     header: normalizeHeader(message.header),
@@ -1773,13 +1987,15 @@ function getPose(pointCloud: PointCloud | PointCloud2): Pose {
   return maybeFoxglove.pose ?? makePose();
 }
 
-function MirToRos(messageEvent: PartialMessageEvent<MirObstacleCloud>): PartialMessageEvent<PointCloud2> {
+function MirToRos(
+  messageEvent: PartialMessageEvent<MirObstacleCloud>,
+): PartialMessageEvent<PointCloud2> {
   return {
-        topic: messageEvent.topic,
-        schemaName: messageEvent.schemaName,
-        receiveTime: messageEvent.receiveTime,
-        publishTime: messageEvent.publishTime,
-        message: messageEvent.message.cloud!,
-        sizeInBytes: messageEvent.sizeInBytes,
-  }
+    topic: messageEvent.topic,
+    schemaName: messageEvent.schemaName,
+    receiveTime: messageEvent.receiveTime,
+    publishTime: messageEvent.publishTime,
+    message: messageEvent.message.cloud!,
+    sizeInBytes: messageEvent.sizeInBytes,
+  };
 }

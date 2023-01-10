@@ -183,10 +183,10 @@ function TeleopPanel(props: TeleopPanelProps): JSX.Element {
       return;
     }
 
-    context.advertise?.(currentTopic, "geometry_msgs/Twist", {
+    context.advertise?.(currentTopic, "geometry_msgs/TwistStamped", {
       datatypes: new Map([
         ["geometry_msgs/Vector3", ros1["geometry_msgs/Vector3"]],
-        ["geometry_msgs/Twist", ros1["geometry_msgs/Twist"]],
+        ["geometry_msgs/TwistStamped", ros1["geometry_msgs/TwistStamped"]],
       ]),
     });
 
@@ -201,37 +201,44 @@ function TeleopPanel(props: TeleopPanelProps): JSX.Element {
     }
 
     const message = {
-      linear: {
-        x: 0,
-        y: 0,
-        z: 0,
+      header: {
+        seq: 0,
+        stamp: 0,
+        frame_id: "",
       },
-      angular: {
-        x: 0,
-        y: 0,
-        z: 0,
+      twist: {
+        linear: {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+        angular: {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
       },
     };
 
     function setFieldValue(field: string, value: number) {
       switch (field) {
         case "linear-x":
-          message.linear.x = value;
+          message.twist.linear.x = value;
           break;
         case "linear-y":
-          message.linear.y = value;
+          message.twist.linear.y = value;
           break;
         case "linear-z":
-          message.linear.z = value;
+          message.twist.linear.z = value;
           break;
         case "angular-x":
-          message.angular.x = value;
+          message.twist.angular.x = value;
           break;
         case "angular-y":
-          message.angular.y = value;
+          message.twist.angular.y = value;
           break;
         case "angular-z":
-          message.angular.z = value;
+          message.twist.angular.z = value;
           break;
       }
     }

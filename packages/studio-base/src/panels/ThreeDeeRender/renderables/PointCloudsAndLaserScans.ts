@@ -44,6 +44,8 @@ import {
   MIR_OBSTACLE_CLOUD,
   GridCells,
   GRID_CELLS_DATATYPES,
+  CostmapData,
+  MIR_COST_MAP_DATATYPE,
   Point,
 } from "../ros";
 import { BaseSettings } from "../settings";
@@ -102,10 +104,10 @@ type PointCloudAndLaserScanUserData = BaseUserData & {
   instancePickingMaterial: THREE.ShaderMaterial | LaserScanMaterial;
 };
 
-const DEFAULT_POINT_SIZE = 1.5;
+const DEFAULT_POINT_SIZE = 2;
 const DEFAULT_POINT_SHAPE = "circle";
 const DEFAULT_COLOR_MAP = "turbo";
-const DEFAULT_FLAT_COLOR = { r: 1, g: 1, b: 1, a: 1 };
+const DEFAULT_FLAT_COLOR = { r: 0, g: 1, b: 0, a: 1 };
 const DEFAULT_MIN_COLOR = { r: 100, g: 47, b: 105, a: 1 };
 const DEFAULT_MAX_COLOR = { r: 227, g: 177, b: 135, a: 1 };
 const DEFAULT_RGB_BYTE_ORDER = "rgba";
@@ -133,6 +135,7 @@ const ALL_POINTCLOUD_DATATYPES = new Set<string>([
   ...ROS_POINTCLOUD_DATATYPES,
   ...MIR_OBSTACLE_CLOUD,
   ...GRID_CELLS_DATATYPES,
+  ...MIR_COST_MAP_DATATYPE,
 ]);
 const ALL_LASERSCAN_DATATYPES = new Set<string>([
   ...FOXGLOVE_LASERSCAN_DATATYPES,
@@ -881,6 +884,7 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
 
     renderer.addDatatypeSubscriptions(MIR_OBSTACLE_CLOUD, this.handleMirPointCloud);
     renderer.addDatatypeSubscriptions(GRID_CELLS_DATATYPES, this.handleGridCells);
+    renderer.addDatatypeSubscriptions(MIR_COST_MAP_DATATYPE, this.handleMirLocalCostmap);
     renderer.addDatatypeSubscriptions(ROS_POINTCLOUD_DATATYPES, this.handleRosPointCloud);
     renderer.addDatatypeSubscriptions(FOXGLOVE_POINTCLOUD_DATATYPES, this.handleFoxglovePointCloud);
     renderer.addDatatypeSubscriptions(ROS_LASERSCAN_DATATYPES, this.handleLaserScan);
@@ -1047,6 +1051,86 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
     );
   };
 
+  private handleMirLocalCostmap = (messageEvent: PartialMessageEvent<CostmapData>): void => {
+    const topic = messageEvent.topic;
+    const costmap_data = normalizeCostmapData(messageEvent.message);
+    const receiveTime = toNanoSec(messageEvent.receiveTime);
+    let renderable = this.renderables.get(topic);
+    if (!renderable) {
+      // Set the initial settings from default values merged with any user settings
+      const userSettings = this.renderer.config.topics[topic] as
+        | Partial<LayerSettingsPointCloudAndLaserScan>
+        | undefined;
+      const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+      if (settings.colorField == undefined) {
+        settings.colorMode = "rgb";
+        settings.rgbByteOrder = "abgr";
+
+        // Update user settings with the newly selected color field
+        this.renderer.updateConfig((draft) => {
+          const updatedUserSettings = { ...userSettings };
+          updatedUserSettings.colorField = settings.colorField;
+          updatedUserSettings.colorMode = "flat";
+          updatedUserSettings.colorMap = settings.colorMap;
+          draft.topics[topic] = updatedUserSettings;
+        });
+      }
+
+      const isDecay = settings.decayTime > 0;
+      const geometry = createGeometry(
+        topic,
+        isDecay ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage,
+      );
+
+      const material = pointCloudMaterial(settings);
+      const pickingMaterial = createPickingMaterial(settings);
+      const instancePickingMaterial = createInstancePickingMaterial(settings);
+      const points = createPoints(
+        topic,
+        makePose(),
+        geometry,
+        material,
+        pickingMaterial,
+        instancePickingMaterial,
+      );
+
+      const messageTime = toNanoSec(costmap_data.header.stamp);
+      renderable = new PointCloudAndLaserScanRenderable(topic, this.renderer, {
+        receiveTime,
+        messageTime,
+        frameId: this.renderer.normalizeFrameId(costmap_data.header.frame_id),
+        pose: makePose(),
+        settingsPath: ["topics", topic],
+        settings,
+        topic,
+        gridCells: costmap_data,
+        originalMessage: messageEvent.message as RosObject,
+        pointsHistory: [{ receiveTime, messageTime, points }],
+        material,
+        pickingMaterial,
+        instancePickingMaterial,
+      });
+      renderable.add(points);
+
+      this.add(renderable);
+      this.renderables.set(topic, renderable);
+    }
+    // Update the mapping of topic to point cloud field names if necessary
+    // let fields = this.pointCloudFieldsByTopic.get(topic);
+    // if (!fields || fields.length !== pointCloud.fields.length) {
+    //   fields = pointCloud.fields.map((field) => field.name);
+    //   this.pointCloudFieldsByTopic.set(topic, fields);
+    //   this.updateSettingsTree();
+    // }
+
+    renderable.updateGridCells(
+      costmap_data,
+      messageEvent.message as RosObject,
+      renderable.userData.settings,
+      receiveTime,
+    );
+  };
+
   private handleGridCells = (messageEvent: PartialMessageEvent<GridCells>): void => {
     const topic = messageEvent.topic;
     const gridCells = normalizeGridCells(messageEvent.message);
@@ -1066,7 +1150,7 @@ export class PointCloudsAndLaserScans extends SceneExtension<PointCloudAndLaserS
         this.renderer.updateConfig((draft) => {
           const updatedUserSettings = { ...userSettings };
           updatedUserSettings.colorField = settings.colorField;
-          updatedUserSettings.colorMode = settings.colorMode;
+          updatedUserSettings.colorMode = "flat";
           updatedUserSettings.colorMap = settings.colorMap;
           draft.topics[topic] = updatedUserSettings;
         });
@@ -1919,6 +2003,44 @@ function normalizeGridCells(message: PartialMessage<GridCells>): GridCells {
     cell_height: message.cell_height ?? 0,
     cells: message.cells?.map((p) => normalizePoint(p)) ?? [],
   };
+}
+
+function normalizeCostmapData(message: PartialMessage<CostmapData>): GridCells {
+  const resolution = message.resolution!;
+  const width = message.width!;
+  const height = message.height!;
+  const offset_x = message.offset_x!;
+  const offset_y = message.offset_y!;
+  const grid_cells: GridCells = {
+    header: normalizeHeader(message.header),
+    cell_height: 0.05,
+    cell_width: 0.05,
+    cells: [],
+  };
+
+  for (let y = 0; y < width; y++) {
+    const cur_width = width * y;
+    for (let x = cur_width; x < height + cur_width; x++) {
+      const index = x >>> 2;
+      const offset = 6 - (x % 4 << 1);
+      const value = message.data![index];
+      let value_out = 0;
+      if (value == undefined) {
+        value_out = (0 >> offset) & 3;
+      } else {
+        value_out = (value >> offset) & 3;
+      }
+      if ((value_out & 0xff) === 2) {
+        grid_cells.cells.push({
+          x: (x - cur_width) * resolution + offset_x,
+          y: y * resolution + offset_y,
+          z: 0,
+        });
+      }
+    }
+  }
+  console.log(grid_cells);
+  return grid_cells;
 }
 
 function normalizePointCloud2(message: PartialMessage<PointCloud2>): PointCloud2 {

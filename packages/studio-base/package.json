@@ -58,7 +58,7 @@
     "@foxglove/ws-protocol": "0.0.8",
     "@mcap/core": "0.2.2",
     "@mdi/svg": "6.5.95",
-    "@mui/icons-material": "5.4.1",
+    "@mui/icons-material": "5.14.19",
     "@mui/material": "5.4.1",
     "@mui/x-data-grid": "5.15.1",
     "@protobufjs/base64": "1.1.2",
